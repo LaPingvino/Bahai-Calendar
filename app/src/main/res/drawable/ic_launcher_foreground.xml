@@ -1,0 +1,43 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Centered in 66dp safe zone (canvas 108x108, center 54,54) -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54">
+        <!-- Outer Golden Glow Layer (Noto Sans Symbols 2 1F7D9 Nine-Pointed Star) -->
+        <path
+            android:pathData="M54.0,24.0 L58.26,42.49 L73.36,31.09 L64.74,47.91 L83.61,48.86 L66.21,56.21 L80.05,69.07 L61.99,63.51 L64.34,82.26 L54.0,66.39 L43.66,82.26 L46.01,63.51 L27.95,69.07 L41.79,56.21 L24.39,48.86 L43.26,47.91 L34.64,31.09 L49.74,42.49 Z"
+            android:strokeWidth="1.2"
+            android:strokeColor="#FFE082">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:startX="24"
+                    android:startY="24"
+                    android:endX="84"
+                    android:endY="84"
+                    android:type="linear">
+                    <item android:offset="0.0" android:color="#FFF9C4" />
+                    <item android:offset="0.4" android:color="#FFD54F" />
+                    <item android:offset="0.8" android:color="#FFA000" />
+                    <item android:offset="1.0" android:color="#FF8F00" />
+                </gradient>
+            </aapt:attr>
+        </path>
+
+        <!-- Inner White Geometric Nine-Pointed Star (1F7D9 White Star Model) -->
+        <path
+            android:pathData="M54.0,28.0 L57.19,41.87 L68.52,33.32 L62.06,45.93 L76.21,46.65 L63.16,52.16 L73.54,61.80 L60.00,57.63 L61.75,71.70 L54.0,59.79 L46.25,71.70 L48.00,57.63 L34.46,61.80 L44.84,52.16 L31.79,46.65 L45.94,45.93 L39.48,33.32 L50.81,41.87 Z"
+            android:fillColor="#00000000"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="1.6" />
+
+        <!-- Central subtle radiant circle -->
+        <path
+            android:pathData="M54,54m-4.5,0a4.5,4.5 0 1,0 9,0a4.5,4.5 0 1,0 -9,0"
+            android:fillColor="#FFFFFF" />
+    </group>
+</vector>

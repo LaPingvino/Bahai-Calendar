@@ -1,0 +1,6 @@
+{
+  "name": "Bahá'í Calendar",
+  "description": "Badí' calendar frontend for Google Calendar with home screen widgets, feast and holy day schedules, and appointment synchronization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

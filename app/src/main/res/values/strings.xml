@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Bahá\'í Calendar</string>
+    <string name="app_widget_name">Badí\' Date &amp; Schedule</string>
+    <string name="app_widget_description">Shows current Badí\' date, solar times, live clock, and upcoming calendar events.</string>
+    <string name="app_widget_big_clock_name">Badí\' Big Clock</string>
+    <string name="app_widget_big_clock_description">Large digital clock with Badí\' date, sunset countdown, and next event.</string>
+    <string name="app_widget_agenda_name">Badí\' Agenda &amp; Events</string>
+    <string name="app_widget_agenda_description">Full day agenda showing upcoming Google Calendar events and Bahá\'í Holy Days.</string>
+    <string name="app_widget_compact_name">Badí\' Compact Date</string>
+    <string name="app_widget_compact_description">Minimalist Badí\' date and solar transition badge.</string>
+    <string name="add_appointment">Add Appointment</string>
+    <string name="calendar_sync">Google Calendar</string>
+    <string name="badi_era">B.E.</string>
+</resources>
