@@ -49,6 +49,9 @@ class BadiAgendaWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widget_sunset_badge, displayData.sunsetBadgeText)
             views.setTextViewText(R.id.widget_location_solar, displayData.locationSolarText)
 
+            // Configure live TextClocks (civil and live UTC etime)
+            WidgetDataManager.configureWidgetClocks(views, displayData)
+
             // Holy Day badge in header if present
             if (displayData.holyDayOrFeastText != null) {
                 views.setViewVisibility(R.id.widget_holy_day_badge, View.VISIBLE)

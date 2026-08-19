@@ -3,6 +3,7 @@ package com.example.widget
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.widget.RemoteViews
 import com.example.MainActivity
 import com.example.badi.BadiCalendarEngine
 import com.example.badi.BadiDate
@@ -177,17 +178,9 @@ object WidgetDataManager {
         val isAfterSunset = time.isAfter(sunsetToday)
         val timeFmt = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
 
-        val sunsetBadgeText = when (timeSystemMode) {
-            TimeSystemMode.STANDARD_CIVIL -> if (isAfterSunset) "AFTER SUNSET" else "BEFORE SUNSET"
-            TimeSystemMode.ELEMENTAL_ETIME -> "${etime.season.englishName.uppercase()} • ${etime.formattedShort}"
-            TimeSystemMode.DUAL_DISPLAY -> "${if (isAfterSunset) "EVENING" else "DAY"} • ${etime.formattedShort}"
-        }
+        val sunsetBadgeText = if (isAfterSunset) "🌙 AFTER SUNSET" else "☀️ BEFORE SUNSET"
         val cityDisplayName = loc.cityName.split(" / ").first()
-        val locationSolarText = if (timeSystemMode == TimeSystemMode.ELEMENTAL_ETIME) {
-            "📍 $cityDisplayName • ${etime.formattedShort} • ${etime.season.arabicName}"
-        } else {
-            "📍 $cityDisplayName • 🌅 ${sunriseToday.format(timeFmt)} • 🌇 ${sunsetToday.format(timeFmt)}"
-        }
+        val locationSolarText = "📍 $cityDisplayName • 🌅 ${sunriseToday.format(timeFmt)} • 🌇 ${sunsetToday.format(timeFmt)}"
 
         val holyDayOrFeastText = when {
             badiDate.holyDay != null -> {
@@ -323,7 +316,9 @@ object WidgetDataManager {
             holyDayOrFeastText = holyDayOrFeastText,
             todayEvents = todayEvents,
             nextEventSummary = nextEventSummary,
-            logicalBlocks = logicalBlocks
+            logicalBlocks = logicalBlocks,
+            timeSystemMode = timeSystemMode,
+            elementalTimeText = elementalTimeText
         )
     }
 
@@ -337,5 +332,40 @@ object WidgetDataManager {
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+    }
+
+    /**
+     * Configures live native TextClocks and Elemental Time components across widgets.
+     * Uses Android's native TextClock for UTC minutes ("mm") combined with an hourly prefix TextView,
+     * ensuring fluid per-minute updates without DateFormat parsing bugs, reflection failures, or battery drain!
+     */
+    fun configureWidgetClocks(
+        views: RemoteViews,
+        data: WidgetDisplayData,
+        isBigClock: Boolean = false
+    ) {
+        val etime = ElementalTimeEngine.calculate(Instant.now())
+        val etimePrefixText = if (isBigClock) {
+            "${etime.season.emoji} ${etime.season.englishName} ${etime.blockHour}:"
+        } else {
+            "${etime.season.emoji} ${etime.blockHour}:"
+        }
+
+        when (data.timeSystemMode) {
+            TimeSystemMode.STANDARD_CIVIL -> {
+                views.setViewVisibility(com.example.R.id.widget_text_clock, android.view.View.VISIBLE)
+                views.setViewVisibility(com.example.R.id.widget_etime_container, android.view.View.GONE)
+            }
+            TimeSystemMode.ELEMENTAL_ETIME -> {
+                views.setViewVisibility(com.example.R.id.widget_text_clock, android.view.View.GONE)
+                views.setViewVisibility(com.example.R.id.widget_etime_container, android.view.View.VISIBLE)
+                views.setTextViewText(com.example.R.id.widget_etime_prefix, etimePrefixText)
+            }
+            TimeSystemMode.DUAL_DISPLAY -> {
+                views.setViewVisibility(com.example.R.id.widget_text_clock, android.view.View.VISIBLE)
+                views.setViewVisibility(com.example.R.id.widget_etime_container, android.view.View.VISIBLE)
+                views.setTextViewText(com.example.R.id.widget_etime_prefix, etimePrefixText)
+            }
+        }
     }
 }

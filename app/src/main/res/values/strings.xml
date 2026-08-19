@@ -8,6 +8,8 @@
     <string name="app_widget_agenda_description">Full day agenda showing upcoming Google Calendar events and Bahá\'í Holy Days.</string>
     <string name="app_widget_compact_name">Badí\' Compact Date</string>
     <string name="app_widget_compact_description">Minimalist Badí\' date and solar transition badge.</string>
+    <string name="app_widget_next_event_name">Badí\' Next Event</string>
+    <string name="app_widget_next_event_description">Minimalist 2x1 widget combining Badí\' date and your next upcoming calendar appointment.</string>
     <string name="add_appointment">Add Appointment</string>
     <string name="calendar_sync">Google Calendar</string>
     <string name="badi_era">B.E.</string>

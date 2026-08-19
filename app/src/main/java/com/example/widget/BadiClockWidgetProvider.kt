@@ -47,13 +47,14 @@ class BadiClockWidgetProvider : AppWidgetProvider() {
             }
             views.setTextViewText(com.example.R.id.widget_badi_full_date, dateText)
 
-            // Location & Sunset time
-            val timeFmt = java.time.format.DateTimeFormatter.ofPattern("h:mm a")
-            val cityDisplayName = data.location.cityName.split(" / ").first()
+            // Location & Sunset time / Solar info
             views.setTextViewText(
                 com.example.R.id.widget_location_solar,
-                "📍 $cityDisplayName • 🌇 ${data.sunsetTime.format(timeFmt)}"
+                data.locationSolarText
             )
+
+            // Configure live TextClocks (civil and live UTC etime)
+            WidgetDataManager.configureWidgetClocks(views, data, isBigClock = true)
 
             // Event & Holy day badge
             if (data.holyDayOrFeastText != null) {

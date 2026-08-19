@@ -42,6 +42,9 @@ class BadiCompactWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(com.example.R.id.widget_badi_weekday, weekdayText)
             views.setTextViewText(com.example.R.id.widget_sunset_badge, data.sunsetBadgeText)
 
+            // Configure live TextClocks (civil and live UTC etime)
+            WidgetDataManager.configureWidgetClocks(views, data)
+
             views.setOnClickPendingIntent(
                 com.example.R.id.widget_container,
                 WidgetDataManager.getAppOpenPendingIntent(context)

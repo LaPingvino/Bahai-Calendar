@@ -60,6 +60,9 @@ class BadiAppWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(com.example.R.id.widget_sunset_badge, data.sunsetBadgeText)
             views.setTextViewText(com.example.R.id.widget_location_solar, data.locationSolarText)
 
+            // Configure live TextClocks (civil and live UTC etime)
+            WidgetDataManager.configureWidgetClocks(views, data)
+
             // 5. Today's Upcoming Event / Appointment
             views.setTextViewText(com.example.R.id.widget_event_text, data.nextEventSummary)
 
@@ -113,6 +116,15 @@ class BadiAppWidgetProvider : AppWidgetProvider() {
             for (id in appWidgetManager.getAppWidgetIds(compactComponent)) {
                 BadiCompactWidgetProvider.updateAppWidget(context, appWidgetManager, id)
             }
+
+            // 5. Next Event Widget (2x1)
+            val nextEventComponent = ComponentName(context, BadiNextEventWidgetProvider::class.java)
+            for (id in appWidgetManager.getAppWidgetIds(nextEventComponent)) {
+                BadiNextEventWidgetProvider.updateAppWidget(context, appWidgetManager, id)
+            }
+
+            // Schedule next hourly refresh for etime synchronization
+            WidgetHourlyAlarmManager.scheduleNextHourAlarm(context)
         }
     }
 }
