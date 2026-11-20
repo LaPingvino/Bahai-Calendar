@@ -196,7 +196,7 @@ class CalendarRepository(private val context: Context) {
                 put(CalendarContract.Events.DTSTART, event.startMillis)
                 put(CalendarContract.Events.DTEND, event.endMillis)
                 put(CalendarContract.Events.ALL_DAY, if (event.isAllDay) 1 else 0)
-                put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
+                put(CalendarContract.Events.EVENT_TIMEZONE, if (event.isAllDay) "UTC" else event.timeZoneId)
             }
 
             val uri: Uri? = context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
@@ -237,7 +237,8 @@ class CalendarRepository(private val context: Context) {
         location: String?,
         startMillis: Long,
         endMillis: Long,
-        isAllDay: Boolean
+        isAllDay: Boolean,
+        timeZoneId: String = TimeZone.getDefault().id
     ): Result<Boolean> {
         if (!hasCalendarPermissions()) {
             return Result.failure(SecurityException("Calendar permissions not granted"))
@@ -252,7 +253,7 @@ class CalendarRepository(private val context: Context) {
                 put(CalendarContract.Events.DTSTART, startMillis)
                 put(CalendarContract.Events.DTEND, endMillis)
                 put(CalendarContract.Events.ALL_DAY, if (isAllDay) 1 else 0)
-                put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
+                put(CalendarContract.Events.EVENT_TIMEZONE, if (isAllDay) "UTC" else timeZoneId)
             }
             val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId)
             val rows = context.contentResolver.update(uri, values, null, null)

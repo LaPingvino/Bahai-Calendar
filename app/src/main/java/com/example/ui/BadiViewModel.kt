@@ -20,9 +20,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
 
 import com.example.devotional.CityLocation
 import com.example.devotional.DevotionalRepository
@@ -87,9 +90,33 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun settingsPrefs() =
+        getApplication<Application>().getSharedPreferences("badi_settings_prefs", android.content.Context.MODE_PRIVATE)
+
+    private fun resolveZoneId(location: CityLocation): ZoneId =
+        try {
+            ZoneId.of(location.timeZoneId)
+        } catch (_: Exception) {
+            ZoneId.systemDefault()
+        }
+
+    private fun computeTodayBadiDate(
+        location: CityLocation,
+        overrideTime: LocalTime? = null
+    ): BadiDate {
+        val zoneId = resolveZoneId(location)
+        val zdt = ZonedDateTime.now(zoneId)
+        return BadiCalendarEngine.gregorianToBadi(
+            date = zdt.toLocalDate(),
+            time = overrideTime ?: zdt.toLocalTime(),
+            latitude = location.latitude,
+            longitude = location.longitude,
+            zoneId = zoneId
+        )
+    }
+
     private fun getSavedTimeSystemMode(): TimeSystemMode {
-        val prefs = getApplication<Application>().getSharedPreferences("badi_settings_prefs", android.content.Context.MODE_PRIVATE)
-        val modeName = prefs.getString("key_time_system_mode", TimeSystemMode.STANDARD_CIVIL.name)
+        val modeName = settingsPrefs().getString("key_time_system_mode", TimeSystemMode.STANDARD_CIVIL.name)
         return try {
             TimeSystemMode.valueOf(modeName ?: TimeSystemMode.STANDARD_CIVIL.name)
         } catch (_: Exception) {
@@ -98,31 +125,132 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun saveTimeSystemMode(mode: TimeSystemMode) {
-        val prefs = getApplication<Application>().getSharedPreferences("badi_settings_prefs", android.content.Context.MODE_PRIVATE)
-        prefs.edit().putString("key_time_system_mode", mode.name).apply()
+        settingsPrefs().edit().putString("key_time_system_mode", mode.name).apply()
+    }
+
+    private fun getSavedThemeMode(): AppThemeMode {
+        val modeName = settingsPrefs().getString("key_app_theme_mode", AppThemeMode.ELEGANT_DARK.name)
+        return try {
+            AppThemeMode.valueOf(modeName ?: AppThemeMode.ELEGANT_DARK.name)
+        } catch (_: Exception) {
+            AppThemeMode.ELEGANT_DARK
+        }
+    }
+
+    private fun saveThemeMode(mode: AppThemeMode) {
+        settingsPrefs().edit().putString("key_app_theme_mode", mode.name).apply()
+    }
+
+    private fun getSavedYearNotationSystem(): YearNotationSystem {
+        val modeName = settingsPrefs().getString("key_year_notation_system", YearNotationSystem.SHORT_SYSTEM.name)
+        return try {
+            YearNotationSystem.valueOf(modeName ?: YearNotationSystem.SHORT_SYSTEM.name)
+        } catch (_: Exception) {
+            YearNotationSystem.SHORT_SYSTEM
+        }
+    }
+
+    private fun saveYearNotationSystem(system: YearNotationSystem) {
+        settingsPrefs().edit().putString("key_year_notation_system", system.name).apply()
     }
 
     private fun createInitialState(): BadiUiState {
-        val now = LocalDate.now()
-        val time = LocalTime.now()
-        val todayBadi = BadiCalendarEngine.gregorianToBadi(now, time)
+        val savedLocation = LocationHelper.getSavedLocation(getApplication())
+        val todayBadi = computeTodayBadiDate(savedLocation)
         val days = BadiCalendarEngine.getDaysInMonth(todayBadi.year, todayBadi.month)
         val allHolyDays = BadiCalendarEngine.getAllHolyDaysForYear(todayBadi.year)
-        val savedLocation = LocationHelper.getSavedLocation(getApplication())
-        val savedTimeSystem = getSavedTimeSystemMode()
 
         return BadiUiState(
             todayBadiDate = todayBadi,
             selectedBadiDate = todayBadi,
             displayedBadiMonth = todayBadi.month,
             displayedBadiYear = todayBadi.year,
+            yearNotationSystem = getSavedYearNotationSystem(),
             daysInMonth = days,
             allYearHolyDays = allHolyDays,
             currentLocation = savedLocation,
-            timeSystemMode = savedTimeSystem,
+            currentTheme = getSavedThemeMode(),
+            timeSystemMode = getSavedTimeSystemMode(),
             hasCalendarPermission = repository.hasCalendarPermissions(),
             hasLocationPermission = LocationHelper.hasLocationPermission(getApplication())
         )
+    }
+
+    private fun applyLocationAndRefresh(
+        location: CityLocation,
+        snackbarMessage: String? = null
+    ) {
+        val prevState = _uiState.value
+        val overrideTime = if (prevState.isAfterSunsetMode) LocalTime.of(22, 0) else null
+        val newToday = computeTodayBadiDate(location, overrideTime)
+        val wasViewingToday = prevState.selectedBadiDate.year == prevState.todayBadiDate.year &&
+            prevState.selectedBadiDate.month == prevState.todayBadiDate.month &&
+            prevState.selectedBadiDate.day == prevState.todayBadiDate.day
+
+        val updatedDays = if (wasViewingToday) {
+            BadiCalendarEngine.getDaysInMonth(newToday.year, newToday.month)
+        } else {
+            prevState.daysInMonth
+        }
+        val updatedHolyDays = if (wasViewingToday) {
+            BadiCalendarEngine.getAllHolyDaysForYear(newToday.year)
+        } else {
+            prevState.allYearHolyDays
+        }
+
+        _uiState.update { state ->
+            state.copy(
+                currentLocation = location,
+                isDetectingLocation = false,
+                todayBadiDate = newToday,
+                selectedBadiDate = if (wasViewingToday) newToday else state.selectedBadiDate,
+                displayedBadiYear = if (wasViewingToday) newToday.year else state.displayedBadiYear,
+                displayedBadiMonth = if (wasViewingToday) newToday.month else state.displayedBadiMonth,
+                daysInMonth = updatedDays,
+                allYearHolyDays = updatedHolyDays,
+                snackbarMessage = snackbarMessage ?: state.snackbarMessage
+            )
+        }
+        loadUpcomingEvents()
+        loadEventsForMonth(updatedDays)
+        BadiAppWidgetProvider.updateAllWidgets(getApplication())
+    }
+
+    fun refreshTodayIfNeeded() {
+        val state = _uiState.value
+        if (state.isAfterSunsetMode) return
+
+        val newToday = computeTodayBadiDate(state.currentLocation)
+        if (newToday != state.todayBadiDate) {
+            val wasViewingToday = state.selectedBadiDate.year == state.todayBadiDate.year &&
+                state.selectedBadiDate.month == state.todayBadiDate.month &&
+                state.selectedBadiDate.day == state.todayBadiDate.day
+
+            val updatedDays = if (wasViewingToday) {
+                BadiCalendarEngine.getDaysInMonth(newToday.year, newToday.month)
+            } else {
+                state.daysInMonth
+            }
+            val updatedHolyDays = if (wasViewingToday) {
+                BadiCalendarEngine.getAllHolyDaysForYear(newToday.year)
+            } else {
+                state.allYearHolyDays
+            }
+
+            _uiState.update { current ->
+                current.copy(
+                    todayBadiDate = newToday,
+                    selectedBadiDate = if (wasViewingToday) newToday else current.selectedBadiDate,
+                    displayedBadiYear = if (wasViewingToday) newToday.year else current.displayedBadiYear,
+                    displayedBadiMonth = if (wasViewingToday) newToday.month else current.displayedBadiMonth,
+                    daysInMonth = updatedDays,
+                    allYearHolyDays = updatedHolyDays
+                )
+            }
+            loadUpcomingEvents()
+            loadEventsForMonth(updatedDays)
+            BadiAppWidgetProvider.updateAllWidgets(getApplication())
+        }
     }
 
     fun onLocationPermissionResult(isGranted: Boolean) {
@@ -137,14 +265,7 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update { it.copy(isDetectingLocation = true) }
             val detected = LocationHelper.getCurrentOrLastKnownLocation(getApplication())
             if (detected != null) {
-                _uiState.update {
-                    it.copy(
-                        currentLocation = detected,
-                        isDetectingLocation = false,
-                        snackbarMessage = "Location updated: ${detected.cityName}"
-                    )
-                }
-                BadiAppWidgetProvider.updateAllWidgets(getApplication())
+                applyLocationAndRefresh(detected, snackbarMessage = "Location updated: ${detected.cityName}")
             } else {
                 _uiState.update { it.copy(isDetectingLocation = false) }
             }
@@ -155,11 +276,18 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(hasCalendarPermission = isGranted) }
         if (isGranted) {
             refreshCalendarAccountsAndEvents()
+        } else {
+            _uiState.update { it.copy(eventsByDate = emptyMap(), calendarAccounts = emptyList()) }
         }
     }
 
     fun selectDate(badiDate: BadiDate) {
-        _uiState.update { it.copy(selectedBadiDate = badiDate) }
+        _uiState.update { state ->
+            val isTodayCell = badiDate.year == state.todayBadiDate.year &&
+                badiDate.month == state.todayBadiDate.month &&
+                badiDate.day == state.todayBadiDate.day
+            state.copy(selectedBadiDate = if (isTodayCell) state.todayBadiDate else badiDate)
+        }
     }
 
     fun selectTab(tab: CalendarTab) {
@@ -212,34 +340,40 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setYearNotationSystem(system: YearNotationSystem) {
+        saveYearNotationSystem(system)
         _uiState.update { it.copy(yearNotationSystem = system) }
     }
 
     fun toggleYearNotationSystem() {
-        _uiState.update {
-            val next = if (it.yearNotationSystem == YearNotationSystem.SHORT_SYSTEM) {
-                YearNotationSystem.LONG_SYSTEM
-            } else {
-                YearNotationSystem.SHORT_SYSTEM
-            }
-            it.copy(yearNotationSystem = next)
+        val next = if (_uiState.value.yearNotationSystem == YearNotationSystem.SHORT_SYSTEM) {
+            YearNotationSystem.LONG_SYSTEM
+        } else {
+            YearNotationSystem.SHORT_SYSTEM
         }
+        saveYearNotationSystem(next)
+        _uiState.update { it.copy(yearNotationSystem = next) }
     }
 
     fun goToToday() {
-        val now = LocalDate.now()
-        val time = LocalTime.now()
-        val todayBadi = BadiCalendarEngine.gregorianToBadi(now, time)
+        val savedLocation = _uiState.value.currentLocation
+        val todayBadi = computeTodayBadiDate(savedLocation)
+        _uiState.update { it.copy(isAfterSunsetMode = false, todayBadiDate = todayBadi) }
         navigateToYearMonth(todayBadi.year, todayBadi.month)
-        _uiState.update { it.copy(selectedBadiDate = todayBadi) }
+        _uiState.update { it.copy(selectedBadiDate = todayBadi, todayBadiDate = todayBadi) }
     }
 
     private fun navigateToYearMonth(year: Int, month: Int) {
         val days = BadiCalendarEngine.getDaysInMonth(year, month)
         val allHolyDays = BadiCalendarEngine.getAllHolyDaysForYear(year)
-        val defaultSelected = days.firstOrNull { it.day == _uiState.value.selectedBadiDate.day }
+        val today = _uiState.value.todayBadiDate
+        val matched = days.firstOrNull { it.day == _uiState.value.selectedBadiDate.day }
             ?: days.firstOrNull()
-            ?: _uiState.value.todayBadiDate
+            ?: today
+        val defaultSelected = if (matched.year == today.year && matched.month == today.month && matched.day == today.day) {
+            today
+        } else {
+            matched
+        }
 
         _uiState.update {
             it.copy(
@@ -256,16 +390,20 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleSunsetEveningSimulation() {
-        val current = _uiState.value.isAfterSunsetMode
-        val newMode = !current
-        val now = LocalDate.now()
+        val newMode = !_uiState.value.isAfterSunsetMode
+        val savedLocation = _uiState.value.currentLocation
         val fakeTime = if (newMode) LocalTime.of(22, 0) else LocalTime.of(12, 0)
-        val todayBadi = BadiCalendarEngine.gregorianToBadi(now, fakeTime)
+        val todayBadi = computeTodayBadiDate(savedLocation, overrideTime = fakeTime)
 
         _uiState.update {
             it.copy(
                 isAfterSunsetMode = newMode,
                 todayBadiDate = todayBadi,
+                selectedBadiDate = todayBadi,
+                displayedBadiYear = todayBadi.year,
+                displayedBadiMonth = todayBadi.month,
+                daysInMonth = BadiCalendarEngine.getDaysInMonth(todayBadi.year, todayBadi.month),
+                allYearHolyDays = BadiCalendarEngine.getAllHolyDaysForYear(todayBadi.year),
                 snackbarMessage = if (newMode) "Switched to Evening view (Post-sunset)" else "Switched to Daytime view"
             )
         }
@@ -288,6 +426,7 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setThemeMode(mode: AppThemeMode) {
+        saveThemeMode(mode)
         _uiState.update {
             it.copy(
                 currentTheme = mode,
@@ -328,7 +467,8 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshCalendarAccountsAndEvents() {
         viewModelScope.launch(Dispatchers.IO) {
-            val accounts = repository.getCalendarAccounts()
+            val hasPerm = repository.hasCalendarPermissions()
+            val accounts = if (hasPerm) repository.getCalendarAccounts() else emptyList()
             val primaryId = accounts.firstOrNull { it.isPrimary }?.id ?: accounts.firstOrNull()?.id
 
             withContext(Dispatchers.Main) {
@@ -336,7 +476,7 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
                     it.copy(
                         calendarAccounts = accounts,
                         selectedCalendarId = it.selectedCalendarId ?: primaryId,
-                        hasCalendarPermission = repository.hasCalendarPermissions()
+                        hasCalendarPermission = hasPerm
                     )
                 }
                 loadEventsForMonth(_uiState.value.daysInMonth)
@@ -345,28 +485,51 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun loadEventsForMonth(days: List<BadiDate>) {
-        if (days.isEmpty() || !repository.hasCalendarPermissions()) return
+        if (days.isEmpty()) return
+        if (!repository.hasCalendarPermissions()) {
+            _uiState.update { it.copy(eventsByDate = emptyMap()) }
+            return
+        }
+
+        val location = _uiState.value.currentLocation
+        val zoneId = resolveZoneId(location)
+        val selectedCalendarId = _uiState.value.selectedCalendarId
 
         viewModelScope.launch(Dispatchers.IO) {
-            val firstDate = days.first().gregorianDate
-            val lastDate = days.last().gregorianDate
+            val firstDate = days.first().primaryBadiGregorianDate
+            val lastDate = days.last().primaryBadiGregorianDate
 
-            val startMillis = firstDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-            val endMillis = lastDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            // Pad by -1 day to +3 days so Badí' evening-before and +2 prep blocks are covered
+            val startMillis = firstDate.minusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
+            val endMillis = lastDate.plusDays(3).atStartOfDay(zoneId).toInstant().toEpochMilli()
 
             val events = repository.getEventsForRange(
                 startMillis,
                 endMillis,
-                _uiState.value.selectedCalendarId
+                selectedCalendarId
             )
 
             val grouped = events.groupBy { event ->
                 val badi = if (event.isAllDay) {
-                    BadiCalendarEngine.gregorianToBadi(event.startDateTime.toLocalDate(), null)
+                    val utcDate = Instant.ofEpochMilli(event.startMillis).atZone(ZoneOffset.UTC).toLocalDate()
+                    BadiCalendarEngine.gregorianToBadi(
+                        date = utcDate,
+                        time = null,
+                        latitude = location.latitude,
+                        longitude = location.longitude,
+                        zoneId = zoneId
+                    )
                 } else {
-                    BadiCalendarEngine.gregorianToBadi(event.startDateTime.toLocalDate(), event.startDateTime.toLocalTime())
+                    val zdt = Instant.ofEpochMilli(event.startMillis).atZone(zoneId)
+                    BadiCalendarEngine.gregorianToBadi(
+                        date = zdt.toLocalDate(),
+                        time = zdt.toLocalTime(),
+                        latitude = location.latitude,
+                        longitude = location.longitude,
+                        zoneId = zoneId
+                    )
                 }
-                badi.gregorianDate
+                badi.primaryBadiGregorianDate
             }
 
             withContext(Dispatchers.Main) {
@@ -377,8 +540,18 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun loadUpcomingEvents() {
+        val location = _uiState.value.currentLocation
+        val zoneId = resolveZoneId(location)
+        val fromDate = _uiState.value.todayBadiDate.primaryBadiGregorianDate
+
         viewModelScope.launch(Dispatchers.IO) {
-            val upcoming = BadiCalendarEngine.getUpcomingEvents(LocalDate.now(), count = 12)
+            val upcoming = BadiCalendarEngine.getUpcomingEvents(
+                fromDate = fromDate,
+                count = 12,
+                latitude = location.latitude,
+                longitude = location.longitude,
+                zoneId = zoneId
+            )
             withContext(Dispatchers.Main) {
                 _uiState.update { it.copy(upcomingHolyDaysAndFeasts = upcoming) }
             }
@@ -393,19 +566,21 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
         endTime: LocalTime,
         isAllDay: Boolean,
         calendarId: Long,
-        targetDate: LocalDate = _uiState.value.selectedBadiDate.gregorianDate
+        targetDate: LocalDate = _uiState.value.selectedBadiDate.primaryBadiGregorianDate
     ) {
+        val zoneId = resolveZoneId(_uiState.value.currentLocation)
         viewModelScope.launch(Dispatchers.IO) {
             val startMillis = if (isAllDay) {
-                targetDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                targetDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
             } else {
-                targetDate.atTime(startTime).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                targetDate.atTime(startTime).atZone(zoneId).toInstant().toEpochMilli()
             }
 
             val endMillis = if (isAllDay) {
-                targetDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                targetDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
             } else {
-                targetDate.atTime(endTime).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val endDate = if (!endTime.isAfter(startTime)) targetDate.plusDays(1) else targetDate
+                endDate.atTime(endTime).atZone(zoneId).toInstant().toEpochMilli()
             }
 
             val result = repository.insertEvent(
@@ -416,7 +591,8 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
                     startMillis = startMillis,
                     endMillis = endMillis,
                     isAllDay = isAllDay,
-                    calendarId = calendarId
+                    calendarId = calendarId,
+                    timeZoneId = if (isAllDay) "UTC" else zoneId.id
                 )
             )
 
@@ -451,19 +627,21 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
         endTime: LocalTime,
         isAllDay: Boolean,
         calendarId: Long,
-        targetDate: LocalDate = _uiState.value.selectedBadiDate.gregorianDate
+        targetDate: LocalDate = _uiState.value.selectedBadiDate.primaryBadiGregorianDate
     ) {
+        val zoneId = resolveZoneId(_uiState.value.currentLocation)
         viewModelScope.launch(Dispatchers.IO) {
             val startMillis = if (isAllDay) {
-                targetDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                targetDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
             } else {
-                targetDate.atTime(startTime).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                targetDate.atTime(startTime).atZone(zoneId).toInstant().toEpochMilli()
             }
 
             val endMillis = if (isAllDay) {
-                targetDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                targetDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
             } else {
-                targetDate.atTime(endTime).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val endDate = if (!endTime.isAfter(startTime)) targetDate.plusDays(1) else targetDate
+                endDate.atTime(endTime).atZone(zoneId).toInstant().toEpochMilli()
             }
 
             val result = repository.updateEvent(
@@ -474,7 +652,8 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
                 location = location,
                 startMillis = startMillis,
                 endMillis = endMillis,
-                isAllDay = isAllDay
+                isAllDay = isAllDay,
+                timeZoneId = if (isAllDay) "UTC" else zoneId.id
             )
 
             withContext(Dispatchers.Main) {
@@ -516,7 +695,6 @@ class BadiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setLocation(location: CityLocation) {
         LocationHelper.saveLocation(getApplication(), location)
-        _uiState.update { it.copy(currentLocation = location) }
-        BadiAppWidgetProvider.updateAllWidgets(getApplication())
+        applyLocationAndRefresh(location)
     }
 }

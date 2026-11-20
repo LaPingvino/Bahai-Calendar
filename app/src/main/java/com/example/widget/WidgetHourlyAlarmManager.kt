@@ -5,14 +5,17 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.example.badi.TimeSystemMode
+import com.example.badi.BadiCalendarEngine
+import com.example.location.LocationHelper
 import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 
 class WidgetHourlyUpdateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        // updateAllWidgets refreshes all active widgets and reschedules the next alarm
         BadiAppWidgetProvider.updateAllWidgets(context)
-        WidgetHourlyAlarmManager.scheduleNextAlarm(context)
     }
 }
 
@@ -30,22 +33,40 @@ object WidgetHourlyAlarmManager {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            val prefs = context.getSharedPreferences("badi_settings_prefs", Context.MODE_PRIVATE)
-            val modeName = prefs.getString("key_time_system_mode", TimeSystemMode.STANDARD_CIVIL.name)
-            val timeSystemMode = try {
-                TimeSystemMode.valueOf(modeName ?: TimeSystemMode.STANDARD_CIVIL.name)
+            val now = Instant.now()
+            val minFutureInstant = now.plusSeconds(2)
+
+            // 1. Next top of the UTC hour (for etime block/hour prefix changes)
+            val nextUtcHour = now.truncatedTo(ChronoUnit.HOURS).plus(1, ChronoUnit.HOURS)
+
+            // 2. Next local sunset and next local midnight (for Badí' day & civil date rollovers)
+            val loc = LocationHelper.getSavedLocation(context)
+            val zoneId = try {
+                ZoneId.of(loc.timeZoneId)
             } catch (_: Exception) {
-                TimeSystemMode.STANDARD_CIVIL
+                ZoneId.systemDefault()
+            }
+            val zdt = ZonedDateTime.ofInstant(now, zoneId)
+            val todayDate = zdt.toLocalDate()
+            val todaySunset = BadiCalendarEngine.calculateSunset(todayDate, loc.latitude, loc.longitude, zoneId)
+            val todaySunsetInstant = todayDate.atTime(todaySunset).atZone(zoneId).toInstant()
+            val nextSunsetInstant = if (todaySunsetInstant.isAfter(minFutureInstant)) {
+                todaySunsetInstant
+            } else {
+                val tomorrowDate = todayDate.plusDays(1)
+                val tomorrowSunset = BadiCalendarEngine.calculateSunset(tomorrowDate, loc.latitude, loc.longitude, zoneId)
+                tomorrowDate.atTime(tomorrowSunset).atZone(zoneId).toInstant()
             }
 
-            // Schedule alarm for the next top of the UTC hour change to refresh the etime prefix and dates
-            val now = Instant.now()
-            val nextHour = now.truncatedTo(ChronoUnit.HOURS).plus(1, ChronoUnit.HOURS)
-            val triggerAtMillis = nextHour.toEpochMilli()
+            val nextMidnightInstant = todayDate.plusDays(1).atStartOfDay(zoneId).toInstant()
+
+            val triggerInstant = listOf(nextUtcHour, nextSunsetInstant, nextMidnightInstant)
+                .filter { it.isAfter(minFutureInstant) }
+                .minOrNull() ?: nextUtcHour
 
             alarmManager.set(
                 AlarmManager.RTC,
-                triggerAtMillis,
+                triggerInstant.toEpochMilli(),
                 pendingIntent
             )
         } catch (e: Exception) {

@@ -48,10 +48,15 @@ data class CalendarEvent(
             "${startDateTime.format(formatter)} – ${endDateTime.format(formatter)}"
         }
 
-    fun getFormattedTimeRange(timeSystemMode: com.example.badi.TimeSystemMode): String {
+    fun getFormattedTimeRange(
+        timeSystemMode: com.example.badi.TimeSystemMode,
+        zoneId: ZoneId = ZoneId.systemDefault()
+    ): String {
         if (isAllDay) return "All Day"
         val formatter = DateTimeFormatter.ofPattern("h:mm a")
-        val civilStr = "${startDateTime.format(formatter)} – ${endDateTime.format(formatter)}"
+        val localStart = LocalDateTime.ofInstant(Instant.ofEpochMilli(startMillis), zoneId)
+        val localEnd = LocalDateTime.ofInstant(Instant.ofEpochMilli(endMillis), zoneId)
+        val civilStr = "${localStart.format(formatter)} – ${localEnd.format(formatter)}"
         val startEtime = com.example.badi.ElementalTimeEngine.calculate(Instant.ofEpochMilli(startMillis))
         val endEtime = com.example.badi.ElementalTimeEngine.calculate(Instant.ofEpochMilli(endMillis))
         val etimeStr = "${startEtime.formattedShort} – ${endEtime.formattedShort}"
@@ -79,5 +84,6 @@ data class NewCalendarEvent(
     val startMillis: Long,
     val endMillis: Long,
     val isAllDay: Boolean = false,
-    val calendarId: Long
+    val calendarId: Long,
+    val timeZoneId: String = java.util.TimeZone.getDefault().id
 )

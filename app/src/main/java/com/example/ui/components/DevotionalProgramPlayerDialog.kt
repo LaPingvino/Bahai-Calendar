@@ -70,7 +70,7 @@ fun DevotionalProgramPlayerDialog(
                             maxLines = 1
                         )
                         Text(
-                            text = "Reading ${currentIndex + 1} of $totalSteps",
+                            text = if (totalSteps > 0) "Reading ${currentIndex + 1} of $totalSteps" else "No readings",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -84,7 +84,7 @@ fun DevotionalProgramPlayerDialog(
 
                 // Progress Bar
                 LinearProgressIndicator(
-                    progress = { (currentIndex + 1) / totalSteps.toFloat() },
+                    progress = { if (totalSteps > 0) (currentIndex + 1) / totalSteps.toFloat() else 0f },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp)

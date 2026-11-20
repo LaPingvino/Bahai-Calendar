@@ -181,4 +181,19 @@ class WidgetInflationTest {
         assertEquals(View.VISIBLE, textClock.visibility)
         assertEquals(View.GONE, etimeContainer.visibility)
     }
+
+    @Test
+    fun `test widget display data produces distinct logical blocks and consistent sunset status`() {
+        val data = WidgetDataManager.getDisplayData(context)
+        assertEquals(3, data.logicalBlocks.size)
+        assertEquals(3, data.logicalBlocks.map { it.blockTitle }.toSet().size)
+        assertEquals(data.badiDate.isAfterSunset, data.isAfterSunset)
+        if (data.isAfterSunset) {
+            assertTrue(data.sunsetBadgeText.contains("AFTER SUNSET"))
+        } else {
+            assertTrue(data.sunsetBadgeText.contains("BEFORE SUNSET"))
+        }
+        // Verify alarm scheduling runs cleanly
+        com.example.widget.WidgetHourlyAlarmManager.scheduleNextAlarm(context)
+    }
 }

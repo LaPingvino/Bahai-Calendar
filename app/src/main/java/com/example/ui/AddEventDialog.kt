@@ -74,6 +74,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -135,11 +136,17 @@ fun AddEventDialog(
         }
     }
 
+    val primaryDayDate = selectedDate.primaryBadiGregorianDate
+
     val initialDate = remember(editingEvent, selectedDate) {
         if (editingEvent != null) {
-            Instant.ofEpochMilli(editingEvent.startMillis).atZone(zoneId).toLocalDate()
+            if (editingEvent.isAllDay) {
+                Instant.ofEpochMilli(editingEvent.startMillis).atZone(ZoneOffset.UTC).toLocalDate()
+            } else {
+                Instant.ofEpochMilli(editingEvent.startMillis).atZone(zoneId).toLocalDate()
+            }
         } else {
-            selectedDate.gregorianDate
+            primaryDayDate
         }
     }
 
@@ -202,7 +209,7 @@ fun AddEventDialog(
         ?: calendarAccounts.firstOrNull()
 
     // Helper sunset calculation for previous day and current day
-    val prevCivilDate = remember(selectedDate) { selectedDate.gregorianDate.minusDays(1) }
+    val prevCivilDate = remember(primaryDayDate) { primaryDayDate.minusDays(1) }
     val sunsetPrevDay = remember(prevCivilDate, currentLocation) {
         BadiCalendarEngine.calculateSunset(
             date = prevCivilDate,
@@ -211,9 +218,9 @@ fun AddEventDialog(
             zoneId = zoneId
         )
     }
-    val sunsetCurrDay = remember(selectedDate, currentLocation) {
+    val sunsetCurrDay = remember(primaryDayDate, currentLocation) {
         BadiCalendarEngine.calculateSunset(
-            date = selectedDate.gregorianDate,
+            date = primaryDayDate,
             latitude = currentLocation.latitude,
             longitude = currentLocation.longitude,
             zoneId = zoneId
@@ -465,9 +472,14 @@ fun AddEventDialog(
                                 unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
                             ),
                             shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
+                                .matchParentSize()
+                                .clip(RoundedCornerShape(12.dp))
                                 .clickable { accountMenuExpanded = true }
+                                .testTag("calendar_account_selector")
                         )
 
                         DropdownMenu(
@@ -605,7 +617,7 @@ fun AddEventDialog(
                                 .fillMaxWidth()
                                 .clickable {
                                     selectedPreset = BadiDayPreset.AFTER_MIDNIGHT_BADI_DAY
-                                    targetDate = selectedDate.gregorianDate
+                                    targetDate = primaryDayDate
                                     startTime = LocalTime.of(10, 0)
                                     endTime = LocalTime.of(11, 0)
                                 }
@@ -638,7 +650,7 @@ fun AddEventDialog(
                                         color = if (isPreset2Selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Daytime • ${selectedDate.gregorianDate.format(shortDateFormatter)} at 10:00 AM",
+                                        text = "Daytime • ${primaryDayDate.format(shortDateFormatter)} at 10:00 AM",
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -661,7 +673,7 @@ fun AddEventDialog(
                                 .fillMaxWidth()
                                 .clickable {
                                     selectedPreset = BadiDayPreset.NEXT_BADI_DAY_SAME_CIVIL
-                                    targetDate = selectedDate.gregorianDate
+                                    targetDate = primaryDayDate
                                     startTime = nextBadiTime
                                     endTime = nextBadiTime.plusHours(1)
                                 }
@@ -694,7 +706,7 @@ fun AddEventDialog(
                                         color = if (isPreset3Selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
-                                        text = "Evening • ${selectedDate.gregorianDate.format(shortDateFormatter)} at ${nextBadiTime.format(timeFormatter)}",
+                                        text = "Evening • ${primaryDayDate.format(shortDateFormatter)} at ${nextBadiTime.format(timeFormatter)}",
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -750,7 +762,7 @@ fun AddEventDialog(
                                     .clip(RoundedCornerShape(12.dp))
                                     .clickable {
                                         selectedPreset = preset
-                                        targetDate = selectedDate.gregorianDate
+                                        targetDate = primaryDayDate
                                         startTime = localStart
                                         endTime = localStart.plusHours(1L)
                                     }
@@ -878,7 +890,12 @@ fun AddEventDialog(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("Ends", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                                    val isOvernight = !endTime.isAfter(startTime)
+                                    Text(
+                                        text = if (isOvernight) "Ends (+1d)" else "Ends",
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 11.sp
+                                    )
                                     Text(
                                         text = "${endEtime.blockHour}:${String.format(Locale.US, "%02d", endEtime.minute)} ${endEtime.season.emoji}",
                                         fontSize = 11.sp,

@@ -36,54 +36,54 @@ object BadiCalendarEngine {
     private val UHJ_TABLE: Map<Int, UhjYearData> = mapOf(
         172 to UhjYearData(21, 4, 10, 14), // 2015-2016
         173 to UhjYearData(20, 4, 11, 1),  // 2016-2017
-        174 to UhjYearData(20, 4, 10, 21), // 2017-2018 (Bicentenary of Bahá'u'lláh)
+        174 to UhjYearData(20, 5, 10, 21), // 2017-2018 (Bicentenary of Bahá'u'lláh)
         175 to UhjYearData(21, 4, 11, 9),  // 2018-2019
         176 to UhjYearData(21, 4, 10, 29), // 2019-2020 (Bicentenary of the Báb)
         177 to UhjYearData(20, 4, 10, 18), // 2020-2021
-        178 to UhjYearData(20, 4, 11, 6),  // 2021-2022
+        178 to UhjYearData(20, 5, 11, 6),  // 2021-2022
         179 to UhjYearData(21, 4, 10, 26), // 2022-2023
-        180 to UhjYearData(21, 5, 10, 16), // 2023-2024
+        180 to UhjYearData(21, 4, 10, 16), // 2023-2024
         181 to UhjYearData(20, 4, 11, 2),  // 2024-2025
-        182 to UhjYearData(20, 4, 10, 22), // 2025-2026
+        182 to UhjYearData(20, 5, 10, 22), // 2025-2026
         183 to UhjYearData(21, 4, 11, 10), // 2026-2027
         184 to UhjYearData(21, 4, 10, 31), // 2027-2028
         185 to UhjYearData(20, 4, 10, 19), // 2028-2029
-        186 to UhjYearData(20, 4, 11, 8),  // 2029-2030
+        186 to UhjYearData(20, 5, 11, 8),  // 2029-2030
         187 to UhjYearData(21, 4, 10, 28), // 2030-2031
-        188 to UhjYearData(21, 5, 10, 18), // 2031-2032
+        188 to UhjYearData(21, 4, 10, 18), // 2031-2032
         189 to UhjYearData(20, 4, 11, 5),  // 2032-2033
-        190 to UhjYearData(20, 4, 10, 25), // 2033-2034
+        190 to UhjYearData(20, 5, 10, 25), // 2033-2034
         191 to UhjYearData(21, 4, 11, 12), // 2034-2035
         192 to UhjYearData(21, 4, 11, 1),  // 2035-2036
         193 to UhjYearData(20, 4, 10, 20), // 2036-2037
-        194 to UhjYearData(20, 4, 11, 9),  // 2037-2038
+        194 to UhjYearData(20, 5, 11, 9),  // 2037-2038
         195 to UhjYearData(21, 4, 10, 29), // 2038-2039
-        196 to UhjYearData(21, 5, 10, 19), // 2039-2040
+        196 to UhjYearData(21, 4, 10, 19), // 2039-2040
         197 to UhjYearData(20, 4, 11, 6),  // 2040-2041
-        198 to UhjYearData(20, 4, 10, 26), // 2041-2042
+        198 to UhjYearData(20, 5, 10, 26), // 2041-2042
         199 to UhjYearData(21, 4, 11, 15), // 2042-2043
         200 to UhjYearData(21, 4, 11, 3),  // 2043-2044
         201 to UhjYearData(20, 4, 10, 23), // 2044-2045
-        202 to UhjYearData(20, 4, 11, 11), // 2045-2046
+        202 to UhjYearData(20, 5, 11, 11), // 2045-2046
         203 to UhjYearData(21, 4, 10, 31), // 2046-2047
-        204 to UhjYearData(21, 5, 10, 20), // 2047-2048
+        204 to UhjYearData(21, 4, 10, 20), // 2047-2048
         205 to UhjYearData(20, 4, 11, 8),  // 2048-2049
-        206 to UhjYearData(20, 4, 10, 28), // 2049-2050
+        206 to UhjYearData(20, 5, 10, 28), // 2049-2050
         207 to UhjYearData(21, 4, 10, 17), // 2050-2051
         208 to UhjYearData(21, 4, 11, 5),  // 2051-2052
         209 to UhjYearData(20, 4, 10, 24), // 2052-2053
-        210 to UhjYearData(20, 4, 11, 13), // 2053-2054
+        210 to UhjYearData(20, 5, 11, 13), // 2053-2054
         211 to UhjYearData(21, 4, 11, 2),  // 2054-2055
-        212 to UhjYearData(21, 5, 10, 22), // 2055-2056
+        212 to UhjYearData(21, 4, 10, 22), // 2055-2056
         213 to UhjYearData(20, 4, 11, 10), // 2056-2057
-        214 to UhjYearData(20, 4, 10, 30), // 2057-2058
+        214 to UhjYearData(20, 5, 10, 30), // 2057-2058
         215 to UhjYearData(21, 4, 10, 19), // 2058-2059
         216 to UhjYearData(21, 4, 11, 7),  // 2059-2060
         217 to UhjYearData(20, 4, 10, 26), // 2060-2061
-        218 to UhjYearData(20, 4, 11, 15), // 2061-2062
+        218 to UhjYearData(20, 5, 11, 15), // 2061-2062
         219 to UhjYearData(21, 4, 11, 4),  // 2062-2063
-        220 to UhjYearData(21, 5, 10, 24), // 2063-2064
-        221 to UhjYearData(20, 4, 11, 12)  // 2064-2065
+        220 to UhjYearData(21, 4, 10, 24), // 2063-2064
+        221 to UhjYearData(20, 5, 11, 12)  // 2064-2065
     )
 
     /**
@@ -98,15 +98,22 @@ object BadiCalendarEngine {
 
     /**
      * Gets the length of Ayyám-i-Há (4 or 5 days) for a given Badí' year.
+     * Derived directly from consecutive Naw-Rúz dates to guarantee exact year continuity.
      */
     fun getAyyamIHaLength(badiYear: Int): Int {
-        val uhj = UHJ_TABLE[badiYear]
-        if (uhj != null) return uhj.ayyamIHaLength
-        // Fallback: Check if next Badí' year starts 366 days after current
         val startThis = getNawRuzDate(badiYear)
         val startNext = getNawRuzDate(badiYear + 1)
         val totalDays = ChronoUnit.DAYS.between(startThis, startNext)
         return (totalDays - (19 * 19)).toInt().coerceIn(4, 5)
+    }
+
+    /**
+     * Derives a timezone-consistent default longitude when no explicit coordinates are supplied,
+     * preventing mismatched-timezone morning sunsets.
+     */
+    private fun defaultLongitudeForZone(date: LocalDate, zoneId: ZoneId): Double {
+        val standardOffsetHours = zoneId.rules.getStandardOffset(date.atTime(12, 0).atZone(zoneId).toInstant()).totalSeconds / 3600.0
+        return (standardOffsetHours * 15.0).coerceIn(-180.0, 180.0)
     }
 
     /**
@@ -119,9 +126,11 @@ object BadiCalendarEngine {
         longitude: Double? = null,
         zoneId: ZoneId = ZoneId.systemDefault()
     ): BadiDate {
-        // Calculate sunset for the day
-        val sunset = calculateSunset(date, latitude ?: 35.6892, longitude ?: 51.3890, zoneId)
-        val isAfterSunset = if (time != null) time.isAfter(sunset) else false
+        // Calculate sunset for the day using consistent defaults matching zoneId
+        val effLat = latitude ?: 32.8191
+        val effLon = longitude ?: defaultLongitudeForZone(date, zoneId)
+        val sunset = calculateSunset(date, effLat, effLon, zoneId)
+        val isAfterSunset = if (time != null) !time.isBefore(sunset) else false
 
         // In Badí' calendar, sunset begins the NEXT Badí' day!
         val effectiveGregorianDate = if (isAfterSunset) date.plusDays(1) else date
@@ -155,7 +164,7 @@ object BadiCalendarEngine {
         } else {
             // In Month 19 ('Alá')
             month = 19
-            day = (daysSinceNawRuz - ((18 * 19) + ayyamIHaLength)) + 1
+            day = ((daysSinceNawRuz - ((18 * 19) + ayyamIHaLength)) + 1).coerceIn(1, 19)
         }
 
         val holyDay = getHolyDayForDate(badiYear, month, day, effectiveGregorianDate)
@@ -260,13 +269,18 @@ object BadiCalendarEngine {
     /**
      * Gets upcoming 19-Day Feasts and Holy Days starting from [fromDate].
      */
-    fun getUpcomingEvents(fromDate: LocalDate, count: Int = 10): List<BadiDate> {
-        val currentBadi = gregorianToBadi(fromDate)
+    fun getUpcomingEvents(
+        fromDate: LocalDate,
+        count: Int = 10,
+        latitude: Double? = null,
+        longitude: Double? = null,
+        zoneId: ZoneId = ZoneId.systemDefault()
+    ): List<BadiDate> {
         val result = mutableListOf<BadiDate>()
 
         var checkDate = fromDate
         while (result.size < count && ChronoUnit.DAYS.between(fromDate, checkDate) < 400) {
-            val badi = gregorianToBadi(checkDate)
+            val badi = gregorianToBadi(checkDate, null, latitude, longitude, zoneId)
             if (badi.isFeastDay || badi.holyDay != null || badi.isAyyamIHa) {
                 result.add(badi)
             }
@@ -276,33 +290,35 @@ object BadiCalendarEngine {
         return result
     }
 
+    private fun normalizeDegrees(value: Double): Double = ((value % 360.0) + 360.0) % 360.0
+    private fun normalizeHours(value: Double): Double = ((value % 24.0) + 24.0) % 24.0
+
     /**
      * Calculates astronomical sunrise time using the standard solar zenith algorithm.
      */
     fun calculateSunrise(
         date: LocalDate,
         latitude: Double = 32.8191,
-        longitude: Double = 34.9983,
+        longitude: Double? = null,
         zoneId: ZoneId = ZoneId.systemDefault()
     ): LocalTime {
+        val effLon = longitude ?: defaultLongitudeForZone(date, zoneId)
         val dayOfYear = date.dayOfYear
         val zenith = 90.83333333333333 // Official sunrise zenith
 
-        val lngHour = longitude / 15.0
+        val lngHour = effLon / 15.0
         val t = dayOfYear + ((6.0 - lngHour) / 24.0)
 
         // Sun's mean anomaly
         val m = (0.9856 * t) - 3.289
 
         // Sun's true longitude
-        var l = m + (1.916 * sin(Math.toRadians(m))) + (0.020 * sin(Math.toRadians(2 * m))) + 282.634
-        if (l >= 360.0) l -= 360.0
-        if (l < 0.0) l += 360.0
+        val l = normalizeDegrees(
+            m + (1.916 * sin(Math.toRadians(m))) + (0.020 * sin(Math.toRadians(2 * m))) + 282.634
+        )
 
         // Right ascension
-        var ra = Math.toDegrees(kotlin.math.atan(0.91764 * tan(Math.toRadians(l))))
-        if (ra >= 360.0) ra -= 360.0
-        if (ra < 0.0) ra += 360.0
+        var ra = normalizeDegrees(Math.toDegrees(kotlin.math.atan(0.91764 * tan(Math.toRadians(l)))))
 
         // Right ascension in same quadrant as L
         val lQuadrant = Math.floor(l / 90.0) * 90.0
@@ -319,10 +335,12 @@ object BadiCalendarEngine {
                 (cosDec * cos(Math.toRadians(latitude)))
 
         if (cosH > 1.0) {
+            // Sun never rises (polar night) — UHJ fixed clock fallback
             return LocalTime.of(6, 0)
         }
         if (cosH < -1.0) {
-            return LocalTime.of(7, 0)
+            // Sun never sets (polar day) — UHJ fixed clock fallback
+            return LocalTime.of(6, 0)
         }
 
         val h = (360.0 - Math.toDegrees(acos(cosH))) / 15.0
@@ -331,19 +349,13 @@ object BadiCalendarEngine {
         val localMeanTime = h + ra - (0.06571 * t) - 6.622
 
         // Universal Time
-        var ut = localMeanTime - lngHour
-        if (ut >= 24.0) ut -= 24.0
-        if (ut < 0.0) ut += 24.0
+        val ut = normalizeHours(localMeanTime - lngHour)
 
-        val offsetHours = zoneId.rules.getOffset(date.atTime(12, 0)).totalSeconds / 3600.0
-        var localTime = ut + offsetHours
-        if (localTime >= 24.0) localTime -= 24.0
-        if (localTime < 0.0) localTime += 24.0
+        val offsetHours = zoneId.rules.getOffset(date.atTime(6, 0)).totalSeconds / 3600.0
+        val localTime = normalizeHours(ut + offsetHours)
 
-        val hour = localTime.toInt().coerceIn(0, 23)
-        val minute = ((localTime - hour) * 60).toInt().coerceIn(0, 59)
-
-        return LocalTime.of(hour, minute)
+        val totalMinutes = (kotlin.math.round(localTime * 60.0).toInt() % 1440 + 1440) % 1440
+        return LocalTime.of(totalMinutes / 60, totalMinutes % 60)
     }
 
     /**
@@ -352,27 +364,26 @@ object BadiCalendarEngine {
     fun calculateSunset(
         date: LocalDate,
         latitude: Double = 32.8191,
-        longitude: Double = 34.9983,
+        longitude: Double? = null,
         zoneId: ZoneId = ZoneId.systemDefault()
     ): LocalTime {
+        val effLon = longitude ?: defaultLongitudeForZone(date, zoneId)
         val dayOfYear = date.dayOfYear
         val zenith = 90.83333333333333 // Official sunset zenith (includes atmospheric refraction)
 
-        val lngHour = longitude / 15.0
+        val lngHour = effLon / 15.0
         val t = dayOfYear + ((18.0 - lngHour) / 24.0)
 
         // Sun's mean anomaly
         val m = (0.9856 * t) - 3.289
 
         // Sun's true longitude
-        var l = m + (1.916 * sin(Math.toRadians(m))) + (0.020 * sin(Math.toRadians(2 * m))) + 282.634
-        if (l >= 360.0) l -= 360.0
-        if (l < 0.0) l += 360.0
+        val l = normalizeDegrees(
+            m + (1.916 * sin(Math.toRadians(m))) + (0.020 * sin(Math.toRadians(2 * m))) + 282.634
+        )
 
         // Right ascension
-        var ra = Math.toDegrees(kotlin.math.atan(0.91764 * tan(Math.toRadians(l))))
-        if (ra >= 360.0) ra -= 360.0
-        if (ra < 0.0) ra += 360.0
+        var ra = normalizeDegrees(Math.toDegrees(kotlin.math.atan(0.91764 * tan(Math.toRadians(l)))))
 
         // Right ascension in same quadrant as L
         val lQuadrant = Math.floor(l / 90.0) * 90.0
@@ -389,12 +400,12 @@ object BadiCalendarEngine {
                 (cosDec * cos(Math.toRadians(latitude)))
 
         if (cosH > 1.0) {
-            // Sun never sets (polar day) - return standard default
-            return LocalTime.of(19, 0)
+            // Sun never rises (polar night) — UHJ fixed clock fallback
+            return LocalTime.of(18, 0)
         }
         if (cosH < -1.0) {
-            // Sun never rises (polar night)
-            return LocalTime.of(17, 0)
+            // Sun never sets (polar day) — UHJ fixed clock fallback
+            return LocalTime.of(18, 0)
         }
 
         val h = Math.toDegrees(acos(cosH)) / 15.0
@@ -403,19 +414,13 @@ object BadiCalendarEngine {
         val localMeanTime = h + ra - (0.06571 * t) - 6.622
 
         // Universal Time
-        var ut = localMeanTime - lngHour
-        if (ut >= 24.0) ut -= 24.0
-        if (ut < 0.0) ut += 24.0
+        val ut = normalizeHours(localMeanTime - lngHour)
 
-        val offsetHours = zoneId.rules.getOffset(date.atTime(12, 0)).totalSeconds / 3600.0
-        var localTime = ut + offsetHours
-        if (localTime >= 24.0) localTime -= 24.0
-        if (localTime < 0.0) localTime += 24.0
+        val offsetHours = zoneId.rules.getOffset(date.atTime(18, 0)).totalSeconds / 3600.0
+        val localTime = normalizeHours(ut + offsetHours)
 
-        val hour = localTime.toInt().coerceIn(0, 23)
-        val minute = ((localTime - hour) * 60).toInt().coerceIn(0, 59)
-
-        return LocalTime.of(hour, minute)
+        val totalMinutes = (kotlin.math.round(localTime * 60.0).toInt() % 1440 + 1440) % 1440
+        return LocalTime.of(totalMinutes / 60, totalMinutes % 60)
     }
 
     /**

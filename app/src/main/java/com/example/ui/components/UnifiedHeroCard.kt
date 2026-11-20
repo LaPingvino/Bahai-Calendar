@@ -40,6 +40,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -60,6 +61,7 @@ fun UnifiedHeroCard(
     onOpenFastingPrayers: () -> Unit,
     timeSystemMode: TimeSystemMode = TimeSystemMode.STANDARD_CIVIL,
     onOpenTimeSystemPicker: () -> Unit = {},
+    onRefreshToday: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isToday = selectedDate.day == todayDate.day &&
@@ -68,29 +70,6 @@ fun UnifiedHeroCard(
 
     val targetGregorianDate = selectedDate.gregorianDate
 
-    // Real-time ticking clock if today, otherwise static for selected date
-    var currentTime by remember(targetGregorianDate) { mutableStateOf(LocalTime.now()) }
-    var currentInstant by remember(targetGregorianDate) { mutableStateOf(Instant.now()) }
-    var showLocationPicker by remember { mutableStateOf(false) }
-
-    LaunchedEffect(targetGregorianDate) {
-        if (targetGregorianDate == LocalDate.now()) {
-            while (true) {
-                currentTime = LocalTime.now()
-                currentInstant = Instant.now()
-                delay(1000)
-            }
-        }
-    }
-
-    val elementalTime = remember(currentInstant) {
-        ElementalTimeEngine.calculate(currentInstant)
-    }
-
-    val badiSeason = remember(selectedDate.month) {
-        ElementalTimeEngine.getBadiSeasonForMonth(selectedDate.month)
-    }
-
     val zoneId = remember(currentLocation) {
         try {
             ZoneId.of(currentLocation.timeZoneId)
@@ -98,6 +77,12 @@ fun UnifiedHeroCard(
             ZoneId.systemDefault()
         }
     }
+
+    // Real-time ticking clock in active location's timezone
+    var currentZonedDateTime by remember(zoneId, targetGregorianDate) { mutableStateOf(ZonedDateTime.now(zoneId)) }
+    val currentTime = currentZonedDateTime.toLocalTime()
+    val currentInstant = currentZonedDateTime.toInstant()
+    var showLocationPicker by remember { mutableStateOf(false) }
 
     val sunsetTime = remember(targetGregorianDate, currentLocation) {
         BadiCalendarEngine.calculateSunset(
@@ -117,7 +102,43 @@ fun UnifiedHeroCard(
         )
     }
 
-    val isAfterSunset = isEveningMode || selectedDate.isAfterSunset || (isToday && currentTime.isAfter(sunsetTime))
+    val latestOnRefreshToday by rememberUpdatedState(onRefreshToday)
+
+    LaunchedEffect(isToday, zoneId, todayDate) {
+        if (isToday) {
+            while (true) {
+                val nowZdt = ZonedDateTime.now(zoneId)
+                currentZonedDateTime = nowZdt
+                val nowDate = nowZdt.toLocalDate()
+                val nowTime = nowZdt.toLocalTime()
+                val sunsetForNow = BadiCalendarEngine.calculateSunset(
+                    date = nowDate,
+                    latitude = currentLocation.latitude,
+                    longitude = currentLocation.longitude,
+                    zoneId = zoneId
+                )
+                val nowAfterSunset = !nowTime.isBefore(sunsetForNow)
+                if (nowDate != todayDate.gregorianDate || nowAfterSunset != todayDate.isAfterSunset) {
+                    latestOnRefreshToday()
+                }
+                delay(1000)
+            }
+        }
+    }
+
+    val elementalTime = remember(currentInstant) {
+        ElementalTimeEngine.calculate(currentInstant)
+    }
+
+    val badiSeason = remember(selectedDate.month) {
+        ElementalTimeEngine.getBadiSeasonForMonth(selectedDate.month)
+    }
+
+    val isAfterSunset = if (isToday) {
+        isEveningMode || selectedDate.isAfterSunset || !currentTime.isBefore(sunsetTime)
+    } else {
+        isEveningMode || selectedDate.isAfterSunset
+    }
     val isFastingMonth = selectedDate.month == 19 // 'Alá' (The Fast)
 
     val timeFormatter = remember { DateTimeFormatter.ofPattern("h:mm:ss a", Locale.ENGLISH) }
@@ -204,8 +225,8 @@ fun UnifiedHeroCard(
 
             // Quick 4-Elements Planning Reference Strip if in Elemental / Dual mode
             if (timeSystemMode == TimeSystemMode.ELEMENTAL_ETIME || timeSystemMode == TimeSystemMode.DUAL_DISPLAY) {
-                val sequenceBlocks = remember(currentTime, selectedDate.gregorianDate, zoneId) {
-                    ElementalTimeEngine.getChronologicalSequence(Instant.now(), selectedDate.gregorianDate, zoneId)
+                val sequenceBlocks = remember(currentInstant, selectedDate.gregorianDate, zoneId) {
+                    ElementalTimeEngine.getChronologicalSequence(currentInstant, selectedDate.gregorianDate, zoneId)
                 }
                 val shortLocalTimeFormatter = remember { DateTimeFormatter.ofPattern("h a", Locale.ENGLISH) }
 
@@ -434,8 +455,10 @@ fun UnifiedHeroCard(
 
             // Row 4: Sunset countdown or status detail
             Spacer(modifier = Modifier.height(6.dp))
-            val detailMessage = if (!isAfterSunset) {
-                val diffMinutes = Duration.between(currentTime, sunsetTime).toMinutes()
+            val detailMessage = if (!isToday) {
+                "Daylight portion • Sunrise $sunriseDisplay • Sunset $sunsetDisplay"
+            } else if (!isAfterSunset) {
+                val diffMinutes = Duration.between(currentTime, sunsetTime).toMinutes().coerceAtLeast(0L)
                 val hours = diffMinutes / 60
                 val mins = diffMinutes % 60
                 "Badí' day in progress • Sunset at $sunsetDisplay (in ${hours}h ${mins}m)"
@@ -535,11 +558,13 @@ fun UnifiedHeroCard(
                             color = HolyDayGold
                         )
                         Text(
-                            text = if (isDuringFastHours) {
-                                val remaining = Duration.between(currentTime, sunsetTime).toMinutes()
+                            text = if (!isToday) {
+                                "Fast hours: $sunriseDisplay – $sunsetDisplay"
+                            } else if (isDuringFastHours) {
+                                val remaining = Duration.between(currentTime, sunsetTime).toMinutes().coerceAtLeast(0L)
                                 "Fasting active • ${remaining / 60}h ${remaining % 60}m to Iftar"
                             } else if (currentTime.isBefore(sunriseTime)) {
-                                val startIn = Duration.between(currentTime, sunriseTime).toMinutes()
+                                val startIn = Duration.between(currentTime, sunriseTime).toMinutes().coerceAtLeast(0L)
                                 "Fast begins at sunrise (${startIn / 60}h ${startIn % 60}m)"
                             } else {
                                 "Fast ended for today at sunset"

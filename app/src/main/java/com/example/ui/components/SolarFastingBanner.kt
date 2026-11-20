@@ -33,6 +33,7 @@ import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -44,27 +45,27 @@ fun SolarFastingBanner(
     onOpenFastingPrayers: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val targetGregorianDate = currentBadiDate.gregorianDate
-    val isToday = targetGregorianDate == LocalDate.now()
-
-    // Live ticking clock state if today, otherwise static for selected date
-    var currentTime by remember(targetGregorianDate) { mutableStateOf(LocalTime.now()) }
-    var showLocationPicker by remember { mutableStateOf(false) }
-
-    LaunchedEffect(targetGregorianDate) {
-        if (targetGregorianDate == LocalDate.now()) {
-            while (true) {
-                currentTime = LocalTime.now()
-                delay(1000)
-            }
-        }
-    }
-
     val zoneId = remember(currentLocation) {
         try {
             ZoneId.of(currentLocation.timeZoneId)
         } catch (_: Exception) {
             ZoneId.systemDefault()
+        }
+    }
+
+    val targetGregorianDate = currentBadiDate.gregorianDate
+    val isToday = targetGregorianDate == LocalDate.now(zoneId)
+
+    // Live ticking clock state if today, otherwise static for selected date
+    var currentTime by remember(targetGregorianDate, zoneId) { mutableStateOf(ZonedDateTime.now(zoneId).toLocalTime()) }
+    var showLocationPicker by remember { mutableStateOf(false) }
+
+    LaunchedEffect(targetGregorianDate, zoneId) {
+        if (targetGregorianDate == LocalDate.now(zoneId)) {
+            while (true) {
+                currentTime = ZonedDateTime.now(zoneId).toLocalTime()
+                delay(1000)
+            }
         }
     }
 
@@ -86,7 +87,7 @@ fun SolarFastingBanner(
         )
     }
 
-    val isAfterSunset = currentBadiDate.isAfterSunset || (isToday && currentTime.isAfter(sunsetTime))
+    val isAfterSunset = currentBadiDate.isAfterSunset || (isToday && !currentTime.isBefore(sunsetTime))
     val isFastingMonth = currentBadiDate.month == 19 // 'Alá' (The Fast)
 
     val timeFormatter = remember { DateTimeFormatter.ofPattern("h:mm:ss a", Locale.ENGLISH) }
@@ -227,8 +228,10 @@ fun SolarFastingBanner(
 
             // Row 3: Sunset Countdown / Detail Explanation
             Spacer(modifier = Modifier.height(6.dp))
-            val detailMessage = if (!isAfterSunset) {
-                val diffMinutes = Duration.between(currentTime, sunsetTime).toMinutes()
+            val detailMessage = if (!isToday) {
+                "Daylight portion • Sunrise ${sunriseTime.format(shortTimeFormatter)} • Sunset ${sunsetTime.format(shortTimeFormatter)}"
+            } else if (!isAfterSunset) {
+                val diffMinutes = Duration.between(currentTime, sunsetTime).toMinutes().coerceAtLeast(0L)
                 val hours = diffMinutes / 60
                 val mins = diffMinutes % 60
                 "Badí' day changes at sunset (in ${hours}h ${mins}m). Daytime activities in effect."
@@ -266,11 +269,13 @@ fun SolarFastingBanner(
                             )
                         }
                         Text(
-                            text = if (isDuringFastHours) {
-                                val remaining = Duration.between(currentTime, sunsetTime).toMinutes()
+                            text = if (!isToday) {
+                                "Fast hours: ${sunriseTime.format(shortTimeFormatter)} – ${sunsetTime.format(shortTimeFormatter)}"
+                            } else if (isDuringFastHours) {
+                                val remaining = Duration.between(currentTime, sunsetTime).toMinutes().coerceAtLeast(0L)
                                 "Fasting active • ${remaining / 60}h ${remaining % 60}m to Iftar"
                             } else if (currentTime.isBefore(sunriseTime)) {
-                                val startIn = Duration.between(currentTime, sunriseTime).toMinutes()
+                                val startIn = Duration.between(currentTime, sunriseTime).toMinutes().coerceAtLeast(0L)
                                 "Fast begins at sunrise (${startIn / 60}h ${startIn % 60}m)"
                             } else {
                                 "Fast ended for today at sunset"

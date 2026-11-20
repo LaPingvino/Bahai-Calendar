@@ -52,11 +52,11 @@ object LocationHelper {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val city = prefs.getString(KEY_CITY, null)
         val country = prefs.getString(KEY_COUNTRY, null)
-        val lat = prefs.getFloat(KEY_LAT, Float.MIN_VALUE)
-        val lon = prefs.getFloat(KEY_LON, Float.MIN_VALUE)
         val tz = prefs.getString(KEY_TIMEZONE, null) ?: TimeZone.getDefault().id
 
-        if (city != null && lat != Float.MIN_VALUE && lon != Float.MIN_VALUE) {
+        if (city != null && prefs.contains(KEY_LAT) && prefs.contains(KEY_LON)) {
+            val lat = prefs.getFloat(KEY_LAT, 0f)
+            val lon = prefs.getFloat(KEY_LON, 0f)
             return CityLocation(
                 cityName = city,
                 country = country ?: "",
@@ -70,26 +70,54 @@ object LocationHelper {
         return getDefaultLocationForTimeZone(tz)
     }
 
-    private fun getDefaultLocationForTimeZone(tzId: String): CityLocation {
+    internal fun getDefaultLocationForTimeZone(tzId: String): CityLocation {
         return when {
-            tzId.contains("Los_Angeles", ignoreCase = true) || tzId.contains("Pacific", ignoreCase = true) ->
+            tzId.contains("Los_Angeles", ignoreCase = true) || tzId.contains("Vancouver", ignoreCase = true) ||
+                tzId.equals("US/Pacific", ignoreCase = true) || tzId.equals("Canada/Pacific", ignoreCase = true) || tzId.equals("PST8PDT", ignoreCase = true) ->
                 CityLocation("San Francisco", "USA", 37.7749, -122.4194, tzId)
-            tzId.contains("New_York", ignoreCase = true) || tzId.contains("Eastern", ignoreCase = true) ->
-                CityLocation("New York", "USA", 40.7128, -74.0060, tzId)
-            tzId.contains("Chicago", ignoreCase = true) || tzId.contains("Central", ignoreCase = true) ->
+            tzId.contains("Denver", ignoreCase = true) || tzId.contains("Phoenix", ignoreCase = true) ||
+                tzId.equals("US/Mountain", ignoreCase = true) || tzId.equals("Canada/Mountain", ignoreCase = true) || tzId.equals("MST7MDT", ignoreCase = true) ->
+                CityLocation("Denver", "USA", 39.7392, -104.9903, tzId)
+            tzId.contains("Chicago", ignoreCase = true) || tzId.contains("Mexico_City", ignoreCase = true) ||
+                tzId.equals("US/Central", ignoreCase = true) || tzId.equals("Canada/Central", ignoreCase = true) || tzId.equals("CST6CDT", ignoreCase = true) ->
                 CityLocation("Chicago", "USA", 41.8781, -87.6298, tzId)
-            tzId.contains("London", ignoreCase = true) || tzId.contains("Europe/London", ignoreCase = true) || tzId.contains("GMT", ignoreCase = true) ->
+            tzId.contains("New_York", ignoreCase = true) || tzId.contains("Toronto", ignoreCase = true) ||
+                tzId.equals("US/Eastern", ignoreCase = true) || tzId.equals("Canada/Eastern", ignoreCase = true) || tzId.equals("EST5EDT", ignoreCase = true) ->
+                CityLocation("New York", "USA", 40.7128, -74.0060, tzId)
+            tzId.contains("Honolulu", ignoreCase = true) ->
+                CityLocation("Honolulu", "USA", 21.3069, -157.8583, tzId)
+            tzId.contains("Sao_Paulo", ignoreCase = true) || tzId.contains("Buenos_Aires", ignoreCase = true) ->
+                CityLocation("São Paulo", "Brazil", -23.5505, -46.6333, tzId)
+            tzId.contains("London", ignoreCase = true) || tzId.contains("Dublin", ignoreCase = true) || tzId.contains("GMT", ignoreCase = true) || tzId.equals("UTC", ignoreCase = true) || tzId.equals("Etc/UTC", ignoreCase = true) ->
                 CityLocation("London", "United Kingdom", 51.5074, -0.1278, tzId)
-            tzId.contains("Paris", ignoreCase = true) || tzId.contains("Berlin", ignoreCase = true) ->
+            tzId.contains("Amsterdam", ignoreCase = true) || tzId.contains("Brussels", ignoreCase = true) ->
+                CityLocation("Amsterdam", "Netherlands", 52.3676, 4.9041, tzId)
+            tzId.contains("Paris", ignoreCase = true) || tzId.contains("Madrid", ignoreCase = true) ->
                 CityLocation("Paris", "France", 48.8566, 2.3522, tzId)
-            tzId.contains("Tokyo", ignoreCase = true) || tzId.contains("Japan", ignoreCase = true) ->
-                CityLocation("Tokyo", "Japan", 35.6762, 139.6503, tzId)
-            tzId.contains("Sydney", ignoreCase = true) || tzId.contains("Australia", ignoreCase = true) ->
-                CityLocation("Sydney", "Australia", -33.8688, 151.2093, tzId)
-            tzId.contains("Jerusalem", ignoreCase = true) || tzId.contains("Asia/Jerusalem", ignoreCase = true) ->
+            tzId.contains("Berlin", ignoreCase = true) || tzId.contains("Zurich", ignoreCase = true) || tzId.contains("Rome", ignoreCase = true) || tzId.contains("Vienna", ignoreCase = true) || tzId.contains("Stockholm", ignoreCase = true) || tzId.contains("Warsaw", ignoreCase = true) ->
+                CityLocation("Frankfurt", "Germany", 50.1109, 8.6821, tzId)
+            tzId.contains("Jerusalem", ignoreCase = true) || tzId.contains("Tel_Aviv", ignoreCase = true) ->
                 CityLocation("Haifa / Acre", "Holy Land", 32.8191, 34.9983, tzId)
-            else ->
-                CityLocation("Current Location", TimeZone.getDefault().displayName, 32.8191, 34.9983, tzId)
+            tzId.contains("Tehran", ignoreCase = true) ->
+                CityLocation("Tehran", "Iran", 35.6892, 51.3890, tzId)
+            tzId.contains("Kolkata", ignoreCase = true) || tzId.contains("Calcutta", ignoreCase = true) ->
+                CityLocation("New Delhi", "India", 28.5535, 77.2588, tzId)
+            tzId.contains("Tokyo", ignoreCase = true) || tzId.contains("Japan", ignoreCase = true) || tzId.contains("Seoul", ignoreCase = true) ->
+                CityLocation("Tokyo", "Japan", 35.6762, 139.6503, tzId)
+            tzId.contains("Sydney", ignoreCase = true) || tzId.contains("Melbourne", ignoreCase = true) || tzId.contains("Australia", ignoreCase = true) ->
+                CityLocation("Sydney", "Australia", -33.8688, 151.2093, tzId)
+            tzId.contains("Auckland", ignoreCase = true) ->
+                CityLocation("Auckland", "New Zealand", -36.8485, 174.7633, tzId)
+            else -> {
+                // Derive approximate longitude from timezone's standard UTC offset so solar times
+                // match the local timezone instead of prematurely flipping the Badí' date.
+                val tz = TimeZone.getTimeZone(tzId)
+                val offsetHours = tz.rawOffset / 3_600_000.0
+                val approxLon = (offsetHours * 15.0).coerceIn(-180.0, 180.0)
+                val approxLat = if (tzId.startsWith("Australia/") || tzId.startsWith("Antarctica/") || tzId.startsWith("Pacific/Auckland")) -33.0 else 35.0
+                val cityLabel = tzId.substringAfterLast('/').replace('_', ' ').ifBlank { "Current Location" }
+                CityLocation(cityLabel, tz.displayName, approxLat, approxLon, tzId)
+            }
         }
     }
 

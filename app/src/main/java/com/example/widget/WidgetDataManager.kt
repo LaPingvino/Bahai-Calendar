@@ -17,6 +17,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -78,8 +79,8 @@ object WidgetDataManager {
         val now = LocalDate.now(zoneId)
         val nowMillis = System.currentTimeMillis()
 
-        // Fetch from beginning of today up to 14 days ahead
-        val startRange = now.atStartOfDay(zoneId).toInstant().toEpochMilli()
+        // Fetch from yesterday through 14 days ahead so UTC all-day events for today are never missed
+        val startRange = now.minusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
         val endRange = now.plusDays(14).atStartOfDay(zoneId).toInstant().toEpochMilli()
 
         val rawEvents = try {
@@ -93,8 +94,11 @@ object WidgetDataManager {
         val uniqueEvents = mutableListOf<CalendarEvent>()
 
         for (event in rawEvents.sortedBy { it.startMillis }) {
-            // Skip past events that finished more than 30 minutes ago (except all-day today)
-            if (!event.isAllDay && event.endMillis < (nowMillis - 30 * 60 * 1000L)) {
+            if (event.isAllDay) {
+                val allDayDate = Instant.ofEpochMilli(event.startMillis).atZone(ZoneOffset.UTC).toLocalDate()
+                if (allDayDate.isBefore(now)) continue
+            } else if (event.endMillis < (nowMillis - 30 * 60 * 1000L)) {
+                // Skip past events that finished more than 30 minutes ago
                 continue
             }
             val key = "${event.title.trim().lowercase()}__${event.startMillis}__${event.endMillis}"
@@ -107,7 +111,11 @@ object WidgetDataManager {
         val dayFmt = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.ENGLISH)
 
         return uniqueEvents.map { ev ->
-            val eventLocalDate = Instant.ofEpochMilli(ev.startMillis).atZone(zoneId).toLocalDate()
+            val eventLocalDate = if (ev.isAllDay) {
+                Instant.ofEpochMilli(ev.startMillis).atZone(ZoneOffset.UTC).toLocalDate()
+            } else {
+                Instant.ofEpochMilli(ev.startMillis).atZone(zoneId).toLocalDate()
+            }
             val isToday = eventLocalDate.isEqual(now)
             val isTomorrow = eventLocalDate.isEqual(now.plusDays(1))
 
@@ -145,10 +153,23 @@ object WidgetDataManager {
     }
 
     fun getDisplayData(context: Context): WidgetDisplayData {
-        val now = LocalDate.now()
-        val time = LocalTime.now()
-        val instantNow = Instant.now()
-        val badiDate: BadiDate = BadiCalendarEngine.gregorianToBadi(now, time)
+        val loc = LocationHelper.getSavedLocation(context)
+        val zoneId = try {
+            ZoneId.of(loc.timeZoneId)
+        } catch (_: Exception) {
+            ZoneId.systemDefault()
+        }
+        val zdt = java.time.ZonedDateTime.now(zoneId)
+        val now = zdt.toLocalDate()
+        val time = zdt.toLocalTime()
+        val instantNow = zdt.toInstant()
+        val badiDate: BadiDate = BadiCalendarEngine.gregorianToBadi(
+            date = now,
+            time = time,
+            latitude = loc.latitude,
+            longitude = loc.longitude,
+            zoneId = zoneId
+        )
 
         val prefs = context.getSharedPreferences("badi_settings_prefs", Context.MODE_PRIVATE)
         val modeName = prefs.getString("key_time_system_mode", TimeSystemMode.STANDARD_CIVIL.name)
@@ -161,13 +182,6 @@ object WidgetDataManager {
         val etime = ElementalTimeEngine.calculate(instantNow)
         val elementalTimeText = "${etime.formattedShort} (${etime.season.englishName})"
 
-        val loc = LocationHelper.getSavedLocation(context)
-        val zoneId = try {
-            ZoneId.of(loc.timeZoneId)
-        } catch (_: Exception) {
-            ZoneId.systemDefault()
-        }
-
         val sunsetToday = BadiCalendarEngine.calculateSunset(now, loc.latitude, loc.longitude, zoneId)
         val sunriseToday = BadiCalendarEngine.calculateSunrise(now, loc.latitude, loc.longitude, zoneId)
         val sunsetPrev = BadiCalendarEngine.calculateSunset(now.minusDays(1), loc.latitude, loc.longitude, zoneId)
@@ -175,7 +189,7 @@ object WidgetDataManager {
         val sunsetTomorrow = BadiCalendarEngine.calculateSunset(now.plusDays(1), loc.latitude, loc.longitude, zoneId)
         val sunriseDayAfter = BadiCalendarEngine.calculateSunrise(now.plusDays(2), loc.latitude, loc.longitude, zoneId)
 
-        val isAfterSunset = time.isAfter(sunsetToday)
+        val isAfterSunset = !time.isBefore(sunsetToday)
         val timeFmt = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
 
         val sunsetBadgeText = if (isAfterSunset) "🌙 AFTER SUNSET" else "☀️ BEFORE SUNSET"
@@ -217,14 +231,20 @@ object WidgetDataManager {
             }
         }
 
-        // Today events for backward compatibility
+        // Today events for backward compatibility (handle UTC midnight for all-day events)
         val todayStart = now.atStartOfDay(zoneId).toInstant().toEpochMilli()
         val todayEnd = now.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
-        val todayEvents = allEvents.filter { it.startMillis in todayStart until todayEnd || (it.startMillis <= todayStart && it.endMillis >= todayStart) }
+        val todayEvents = allEvents.filter { ev ->
+            if (ev.isAllDay) {
+                Instant.ofEpochMilli(ev.startMillis).atZone(ZoneOffset.UTC).toLocalDate().isEqual(now)
+            } else {
+                ev.startMillis in todayStart until todayEnd || (ev.startMillis <= todayStart && ev.endMillis > todayStart)
+            }
+        }
 
         val nextEventSummary = if (todayEvents.isNotEmpty()) {
-            val nowMillis = System.currentTimeMillis()
-            val upcoming = todayEvents.firstOrNull { it.endMillis > nowMillis } ?: todayEvents.first()
+            val nowMillis = instantNow.toEpochMilli()
+            val upcoming = todayEvents.firstOrNull { it.isAllDay || it.endMillis > nowMillis } ?: todayEvents.first()
             val eventTimeStr = if (upcoming.isAllDay) {
                 "All Day"
             } else {
@@ -263,7 +283,7 @@ object WidgetDataManager {
             Triple("🌙 +2 Ahead (Day After)", "${sunsetTomorrow.format(timeFmt)} – ${sunriseDayAfter.format(timeFmt)}", block5Start..block5End)
         )
 
-        val currentTimeEpoch = Instant.now().toEpochMilli()
+        val currentTimeEpoch = instantNow.toEpochMilli()
         val currentIndex = when {
             currentTimeEpoch < block1End -> 0
             currentTimeEpoch < block2End -> 1
@@ -272,11 +292,12 @@ object WidgetDataManager {
             else -> 4
         }
 
+        val startIdx = currentIndex.coerceIn(0, (rawBlocks.size - 3).coerceAtLeast(0))
         val logicalBlocks = mutableListOf<LogicalBlockAgendaItem>()
-        val assignedEventIds = mutableSetOf<Long>()
+        val assignedEventKeys = mutableSetOf<String>()
 
         for (i in 0 until 3) {
-            val targetIdx = (currentIndex + i).coerceIn(0, rawBlocks.size - 1)
+            val targetIdx = startIdx + i
             val (rawTitle, rangeStr, range) = rawBlocks[targetIdx]
             val blockPrefix = when (i) {
                 0 -> "Current"
@@ -284,12 +305,13 @@ object WidgetDataManager {
                 else -> "+2 Ahead"
             }
             val title = "$blockPrefix: $rawTitle"
-            val eventsInBlock = allEvents.filter {
-                it.id !in assignedEventIds && it.startMillis < range.endInclusive && it.endMillis > range.start
+            val eventsInBlock = allEvents.filter { ev ->
+                val eventKey = "${ev.id}_${ev.startMillis}"
+                eventKey !in assignedEventKeys && ev.startMillis < range.endInclusive && ev.endMillis > range.start
             }
-            // Mark these events as assigned so they are never duplicated into subsequent blocks
+            // Mark these event instances as assigned so they are never duplicated into subsequent blocks
             for (ev in eventsInBlock) {
-                assignedEventIds.add(ev.id)
+                assignedEventKeys.add("${ev.id}_${ev.startMillis}")
             }
 
             val eventSummary = if (eventsInBlock.isNotEmpty()) {

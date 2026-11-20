@@ -19,6 +19,7 @@ class BadiClockWidgetProvider : AppWidgetProvider() {
         for (appWidgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, appWidgetId)
         }
+        WidgetHourlyAlarmManager.scheduleNextAlarm(context)
     }
 
     companion object {

@@ -27,6 +27,7 @@ class BadiAgendaWidgetProvider : AppWidgetProvider() {
         for (appWidgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, appWidgetId)
         }
+        WidgetHourlyAlarmManager.scheduleNextAlarm(context)
         super.onUpdate(context, appWidgetManager, appWidgetIds)
     }
 
@@ -74,7 +75,7 @@ class BadiAgendaWidgetProvider : AppWidgetProvider() {
             }
             val itemClickPendingIntent = PendingIntent.getActivity(
                 context,
-                0,
+                1002,
                 itemClickIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
             )

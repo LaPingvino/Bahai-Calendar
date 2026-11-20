@@ -3,6 +3,7 @@ package com.example.ui
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -24,9 +25,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -89,11 +87,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -128,13 +126,18 @@ import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.TextTertiary
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 @Composable
 fun BadiCalendarScreen(viewModel: BadiViewModel) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+
+    BackHandler(enabled = uiState.activeTab != CalendarTab.MONTH_VIEW) {
+        viewModel.selectTab(CalendarTab.MONTH_VIEW)
+    }
 
     // Calendar Permission Launcher
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -334,15 +337,21 @@ fun BadiCalendarScreen(viewModel: BadiViewModel) {
                 viewModel.editAppointment(eventId, title, desc, loc, start, end, isAllDay, calId, targetDate)
             },
             onOpenNativeCalendar = { title, desc, targetDate, start, end, isAllDay ->
+                val activeZone = try {
+                    ZoneId.of(uiState.currentLocation.timeZoneId)
+                } catch (_: Exception) {
+                    ZoneId.systemDefault()
+                }
                 val startMillis = if (isAllDay) {
-                    targetDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    targetDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
                 } else {
-                    targetDate.atTime(start).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    targetDate.atTime(start).atZone(activeZone).toInstant().toEpochMilli()
                 }
                 val endMillis = if (isAllDay) {
-                    targetDate.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    targetDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
                 } else {
-                    targetDate.atTime(end).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    val endDate = if (!end.isAfter(start)) targetDate.plusDays(1) else targetDate
+                    endDate.atTime(end).atZone(activeZone).toInstant().toEpochMilli()
                 }
                 val intent = calendarRepo.createInsertCalendarIntent(title, startMillis, endMillis, isAllDay, desc)
                 context.startActivity(intent)
@@ -527,7 +536,8 @@ fun MonthViewContent(
             onToggleNotationSystem = { viewModel.toggleYearNotationSystem() },
             onOpenFastingPrayers = { viewModel.selectTab(CalendarTab.DEVOTIONALS) },
             timeSystemMode = uiState.timeSystemMode,
-            onOpenTimeSystemPicker = { viewModel.showTimeSystemPicker(true) }
+            onOpenTimeSystemPicker = { viewModel.showTimeSystemPicker(true) },
+            onRefreshToday = { viewModel.refreshTodayIfNeeded() }
         )
 
         // Main Calendar Section (28dp radius, #25232A)
@@ -1025,43 +1035,53 @@ fun MainCalendarSection(
                 }
             } else 0
 
-            // Grid cells with leading offset
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(7),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(if (days.size <= 14) 110.dp else if (days.size <= 21) 160.dp else 210.dp),
-                userScrollEnabled = false,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            // Grid cells with leading offset (intrinsic row heights so 4-row months never clip days 16-19)
+            val totalSlots = firstDayWeekday + days.size
+            val rowCount = (totalSlots + 6) / 7
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Empty leading cells
-                items(firstDayWeekday) {
-                    Spacer(modifier = Modifier.size(36.dp))
-                }
+                for (row in 0 until rowCount) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        for (col in 0 until 7) {
+                            val slotIndex = row * 7 + col
+                            val dayIndex = slotIndex - firstDayWeekday
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (dayIndex in days.indices) {
+                                    val badiDate = days[dayIndex]
+                                    val isSelected = badiDate.day == uiState.selectedBadiDate.day &&
+                                            badiDate.month == uiState.selectedBadiDate.month &&
+                                            badiDate.year == uiState.selectedBadiDate.year
+                                    val isToday = badiDate.day == uiState.todayBadiDate.day &&
+                                            badiDate.month == uiState.todayBadiDate.month &&
+                                            badiDate.year == uiState.todayBadiDate.year
 
-                // Days
-                items(days) { badiDate ->
-                    val isSelected = badiDate.day == uiState.selectedBadiDate.day &&
-                            badiDate.month == uiState.selectedBadiDate.month &&
-                            badiDate.year == uiState.selectedBadiDate.year
-                    val isToday = badiDate.day == uiState.todayBadiDate.day &&
-                            badiDate.month == uiState.todayBadiDate.month &&
-                            badiDate.year == uiState.todayBadiDate.year
+                                    val hasEvents = (uiState.eventsByDate[badiDate.primaryBadiGregorianDate]?.size ?: 0) > 0
+                                    val isHolyDay = badiDate.holyDay != null
+                                    val isFeast = badiDate.isFeastDay
 
-                    val hasEvents = (uiState.eventsByDate[badiDate.gregorianDate]?.size ?: 0) > 0
-                    val isHolyDay = badiDate.holyDay != null
-                    val isFeast = badiDate.isFeastDay
-
-                    DayGridCell(
-                        badiDate = badiDate,
-                        isSelected = isSelected,
-                        isToday = isToday,
-                        hasEvents = hasEvents,
-                        isHolyDay = isHolyDay,
-                        isFeast = isFeast,
-                        onClick = { viewModel.selectDate(badiDate) }
-                    )
+                                    DayGridCell(
+                                        badiDate = badiDate,
+                                        isSelected = isSelected,
+                                        isToday = isToday,
+                                        hasEvents = hasEvents,
+                                        isHolyDay = isHolyDay,
+                                        isFeast = isFeast,
+                                        onClick = { viewModel.selectDate(badiDate) }
+                                    )
+                                } else {
+                                    Spacer(modifier = Modifier.size(38.dp))
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1153,8 +1173,8 @@ fun GoogleCalendarEventsSection(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(28.dp))
-            .background(DarkSurface)
-            .border(1.dp, BorderColor, RoundedCornerShape(28.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(28.dp))
             .padding(18.dp)
             .testTag("calendar_events_section")
     ) {
@@ -1166,7 +1186,7 @@ fun GoogleCalendarEventsSection(
             ) {
                 Text(
                     text = "BADÍ' LOGICAL BLOCKS & APPOINTMENTS",
-                    color = TextSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 1.1.sp
@@ -1181,7 +1201,7 @@ fun GoogleCalendarEventsSection(
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = "Sync Calendar",
-                                tint = LavenderPrimary,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -1193,7 +1213,7 @@ fun GoogleCalendarEventsSection(
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "New Appointment",
-                            tint = LavenderPrimary,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1208,19 +1228,19 @@ fun GoogleCalendarEventsSection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(DarkCardSurface)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(14.dp)
                 ) {
                     Column {
                         Text(
                             text = "Sync with Google Calendar",
-                            color = TextPrimary,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
                         Text(
                             text = "Grant calendar access to view and add appointments synced across your Google accounts directly from the Badí' view.",
-                            color = TextSecondary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
@@ -1228,8 +1248,8 @@ fun GoogleCalendarEventsSection(
                         Button(
                             onClick = onRequestPermissions,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = LavenderPrimary,
-                                contentColor = LavenderOnPrimary
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
                             ),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.testTag("grant_calendar_permission_button")
@@ -1240,6 +1260,7 @@ fun GoogleCalendarEventsSection(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(10.dp))
             }
 
             // Always show the 5 Badí' logical blocks with appointments embedded inside
@@ -1260,7 +1281,7 @@ fun BadiLogicalBlocksPrepSection(
     onDeleteEvent: (Long) -> Unit,
     onAddEventForDate: () -> Unit
 ) {
-    val targetDate = uiState.selectedBadiDate.gregorianDate
+    val targetDate = uiState.selectedBadiDate.primaryBadiGregorianDate
     val zoneId = remember(uiState.currentLocation) {
         try { ZoneId.of(uiState.currentLocation.timeZoneId) } catch (_: Exception) { ZoneId.systemDefault() }
     }
@@ -1286,25 +1307,25 @@ fun BadiLogicalBlocksPrepSection(
     }
 
     // Epoch millisecond bounds for accurate event mapping
-    val b1Start = remember(targetDate, sunsetPrev) { targetDate.minusDays(1).atTime(sunsetPrev).atZone(zoneId).toInstant().toEpochMilli() }
-    val b1End = remember(targetDate, sunriseToday) { targetDate.atTime(sunriseToday).atZone(zoneId).toInstant().toEpochMilli() }
+    val b1Start = remember(targetDate, sunsetPrev, zoneId) { targetDate.minusDays(1).atTime(sunsetPrev).atZone(zoneId).toInstant().toEpochMilli() }
+    val b1End = remember(targetDate, sunriseToday, zoneId) { targetDate.atTime(sunriseToday).atZone(zoneId).toInstant().toEpochMilli() }
 
     val b2Start = b1End
-    val b2End = remember(targetDate, sunsetToday) { targetDate.atTime(sunsetToday).atZone(zoneId).toInstant().toEpochMilli() }
+    val b2End = remember(targetDate, sunsetToday, zoneId) { targetDate.atTime(sunsetToday).atZone(zoneId).toInstant().toEpochMilli() }
 
     val b3Start = b2End
-    val b3End = remember(targetDate, sunriseTomorrow) { targetDate.plusDays(1).atTime(sunriseTomorrow).atZone(zoneId).toInstant().toEpochMilli() }
+    val b3End = remember(targetDate, sunriseTomorrow, zoneId) { targetDate.plusDays(1).atTime(sunriseTomorrow).atZone(zoneId).toInstant().toEpochMilli() }
 
     val b4Start = b3End
-    val b4End = remember(targetDate, sunsetTomorrow) { targetDate.plusDays(1).atTime(sunsetTomorrow).atZone(zoneId).toInstant().toEpochMilli() }
+    val b4End = remember(targetDate, sunsetTomorrow, zoneId) { targetDate.plusDays(1).atTime(sunsetTomorrow).atZone(zoneId).toInstant().toEpochMilli() }
 
     val b5Start = b4End
-    val b5End = remember(targetDate, sunriseDayAfter) { targetDate.plusDays(2).atTime(sunriseDayAfter).atZone(zoneId).toInstant().toEpochMilli() }
+    val b5End = remember(targetDate, sunriseDayAfter, zoneId) { targetDate.plusDays(2).atTime(sunriseDayAfter).atZone(zoneId).toInstant().toEpochMilli() }
 
-    // Combine all events across date window
+    // Combine all events across date window (use id + startMillis so recurring instances are preserved)
     val allEvents = remember(uiState.eventsByDate, targetDate) {
         val days = listOf(targetDate.minusDays(1), targetDate, targetDate.plusDays(1), targetDate.plusDays(2))
-        days.flatMap { uiState.eventsByDate[it] ?: emptyList() }.distinctBy { it.id }
+        days.flatMap { uiState.eventsByDate[it] ?: emptyList() }.distinctBy { "${it.id}_${it.startMillis}" }
     }
 
     data class BlockDefinition(
@@ -1334,10 +1355,14 @@ fun BadiLogicalBlocksPrepSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(if (block.isCurrentPeriod) LavenderPrimary.copy(alpha = 0.12f) else DarkCardSurface.copy(alpha = 0.8f))
+                    .background(
+                        if (block.isCurrentPeriod) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+                    )
                     .border(
                         1.dp,
-                        if (block.isCurrentPeriod) LavenderPrimary.copy(alpha = 0.4f) else BorderColor.copy(alpha = 0.6f),
+                        if (block.isCurrentPeriod) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.6f),
                         RoundedCornerShape(16.dp)
                     )
                     .padding(12.dp)
@@ -1352,7 +1377,7 @@ fun BadiLogicalBlocksPrepSection(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = block.title,
-                                color = if (block.isCurrentPeriod) LavenderPrimary else TextPrimary,
+                                color = if (block.isCurrentPeriod) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
                             )
@@ -1361,12 +1386,12 @@ fun BadiLogicalBlocksPrepSection(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(4.dp))
-                                        .background(LavenderPrimary)
+                                        .background(MaterialTheme.colorScheme.primary)
                                         .padding(horizontal = 4.dp, vertical = 1.dp)
                                 ) {
                                     Text(
                                         text = "NOW",
-                                        color = LavenderOnPrimary,
+                                        color = MaterialTheme.colorScheme.onPrimary,
                                         fontSize = 8.sp,
                                         fontWeight = FontWeight.Black
                                     )
@@ -1376,7 +1401,7 @@ fun BadiLogicalBlocksPrepSection(
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = block.timeRangeStr,
-                            color = TextSecondary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp
                         )
                     }
@@ -1384,12 +1409,12 @@ fun BadiLogicalBlocksPrepSection(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(LavenderPrimary.copy(alpha = 0.18f))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
                             .padding(horizontal = 6.dp, vertical = 3.dp)
                     ) {
                         Text(
                             text = block.badge,
-                            color = LavenderPrimary,
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 10.sp
                         )
@@ -1406,6 +1431,7 @@ fun BadiLogicalBlocksPrepSection(
                                 event = event,
                                 badiDate = uiState.selectedBadiDate,
                                 timeSystemMode = uiState.timeSystemMode,
+                                zoneId = zoneId,
                                 onEdit = { onEditEvent(event) },
                                 onDelete = { onDeleteEvent(event.id) }
                             )
@@ -1416,14 +1442,14 @@ fun BadiLogicalBlocksPrepSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
-                            .background(DarkSurface.copy(alpha = 0.5f))
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.6f))
                             .padding(horizontal = 10.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = if (block.badge.startsWith("Prep")) "No appointments scheduled • Ready to prep" else "No appointments scheduled for this period",
-                            color = TextTertiary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.5.sp
                         )
                     }
@@ -1438,6 +1464,7 @@ fun EventItemCard(
     event: CalendarEvent,
     badiDate: BadiDate,
     timeSystemMode: TimeSystemMode = TimeSystemMode.STANDARD_CIVIL,
+    zoneId: ZoneId = ZoneId.systemDefault(),
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -1445,18 +1472,18 @@ fun EventItemCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(DarkSurface)
-            .border(1.dp, BorderColor.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left accent pill (#D0BCFF)
+        // Left accent pill
         Box(
             modifier = Modifier
                 .width(4.dp)
                 .height(36.dp)
                 .clip(RoundedCornerShape(2.dp))
-                .background(LavenderPrimary)
+                .background(MaterialTheme.colorScheme.primary)
         )
 
         Spacer(modifier = Modifier.width(10.dp))
@@ -1464,7 +1491,7 @@ fun EventItemCard(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = event.title,
-                color = TextPrimary,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 13.5.sp,
                 maxLines = 1,
@@ -1472,15 +1499,15 @@ fun EventItemCard(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = event.getFormattedTimeRange(timeSystemMode),
-                color = LavenderPrimary,
+                text = event.getFormattedTimeRange(timeSystemMode, zoneId),
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Medium,
                 fontSize = 11.sp
             )
             if (!event.location.isNullOrBlank()) {
                 Text(
                     text = "📍 ${event.location}",
-                    color = TextSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 10.5.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -1497,7 +1524,7 @@ fun EventItemCard(
                 Icon(
                     imageVector = Icons.Default.Edit,
                     contentDescription = "Edit Event",
-                    tint = LavenderPrimary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -1511,7 +1538,7 @@ fun EventItemCard(
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete Event",
-                    tint = TextTertiary,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -1536,12 +1563,12 @@ fun HolyDaysTabContent(
         Text(
             text = "Bahá'í Holy Days (${uiState.displayedBadiYear} B.E.)",
             style = MaterialTheme.typography.titleLarge,
-            color = TextPrimary,
+            color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold
         )
         Text(
             text = "On nine of the eleven Holy Days, work and school are suspended.",
-            color = TextSecondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 13.sp
         )
 
@@ -1553,10 +1580,10 @@ fun HolyDaysTabContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
-                    .border(1.dp, BorderColor, RoundedCornerShape(20.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(20.dp))
                     .clickable { onHolyDayClick(holyDay) }
                     .testTag("holy_day_card_${holyDay.id}"),
-                colors = CardDefaults.cardColors(containerColor = DarkSurface)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -1575,7 +1602,7 @@ fun HolyDaysTabContent(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF4C3600))
+                                    .background(HolyDayGold.copy(alpha = 0.18f))
                                     .padding(horizontal = 8.dp, vertical = 3.dp)
                             ) {
                                 Text(
@@ -1591,13 +1618,13 @@ fun HolyDaysTabContent(
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = gregDate.format(fmt),
-                        color = TextPrimary,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
                         text = "Commemoration: ${holyDay.commemorationTime}",
-                        color = TextSecondary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 2.dp)
                     )
@@ -1796,8 +1823,9 @@ fun AppointmentsTabContent(
     onOpenTimeSystemPicker: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
-
-    val etime = remember { ElementalTimeEngine.calculate() }
+    val zoneId = remember(uiState.currentLocation) {
+        try { ZoneId.of(uiState.currentLocation.timeZoneId) } catch (_: Exception) { ZoneId.systemDefault() }
+    }
 
     Column(
         modifier = Modifier
@@ -2080,29 +2108,29 @@ fun AppointmentsTabContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
-                    .background(DarkSurface)
-                    .border(1.dp, BorderColor, RoundedCornerShape(24.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(24.dp))
                     .padding(20.dp)
             ) {
                 Column {
                     Text(
                         text = "Connect Google Calendar Accounts",
-                        color = LavenderPrimary,
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Connect your on-device Google accounts to seamlessly view and manage events mapped against the 19 Badí' months.",
-                        color = TextSecondary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 13.sp
                     )
                     Spacer(modifier = Modifier.height(14.dp))
                     Button(
                         onClick = onRequestPermissions,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = LavenderPrimary,
-                            contentColor = LavenderOnPrimary
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
                         shape = RoundedCornerShape(14.dp)
                     ) {
@@ -2117,8 +2145,8 @@ fun AppointmentsTabContent(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = DarkSurface),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Row(
@@ -2128,7 +2156,7 @@ fun AppointmentsTabContent(
                     ) {
                         Text(
                             text = "Connected Google Accounts",
-                            color = LavenderPrimary,
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
@@ -2136,7 +2164,7 @@ fun AppointmentsTabContent(
                             onClick = { viewModel.refreshCalendarAccountsAndEvents() },
                             modifier = Modifier.size(28.dp)
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = LavenderPrimary)
+                            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = MaterialTheme.colorScheme.primary)
                         }
                     }
 
@@ -2145,7 +2173,7 @@ fun AppointmentsTabContent(
                     if (uiState.calendarAccounts.isEmpty()) {
                         Text(
                             text = "No Google Calendar accounts found on device.",
-                            color = TextSecondary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 13.sp
                         )
                     } else {
@@ -2164,8 +2192,8 @@ fun AppointmentsTabContent(
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
-                                    Text(acc.displayName, color = TextPrimary, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                                    Text(acc.accountName, color = TextTertiary, fontSize = 11.sp)
+                                    Text(acc.displayName, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                    Text(acc.accountName, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                                 }
                             }
                         }
@@ -2177,8 +2205,8 @@ fun AppointmentsTabContent(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = DarkSurface),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text(
@@ -2205,12 +2233,12 @@ fun AppointmentsTabContent(
                                     item.isAyyamIHa -> "🎁 Ayyám-i-Há Day ${item.day}"
                                     else -> item.formattedBadiDate
                                 }
-                                Text(label, color = TextPrimary, fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                                Text("${item.day} ${item.monthInfo.transliteration} ${item.year} B.E.", color = TextTertiary, fontSize = 11.sp)
+                                Text(label, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                                Text("${item.day} ${item.monthInfo.transliteration} ${item.year} B.E.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                             }
                             Text(
                                 text = item.gregorianDate.format(fmt),
-                                color = LavenderPrimary,
+                                color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 12.sp
                             )
@@ -2220,11 +2248,22 @@ fun AppointmentsTabContent(
             }
 
             // Synced Google Calendar Appointments List
+            val monthDatesSet = remember(uiState.daysInMonth) {
+                uiState.daysInMonth.map { it.primaryBadiGregorianDate }.toSet()
+            }
+            val allMonthEvents = remember(uiState.eventsByDate, monthDatesSet) {
+                uiState.eventsByDate.entries
+                    .filter { it.key in monthDatesSet }
+                    .flatMap { (date, events) -> events.map { date to it } }
+                    .distinctBy { "${it.second.id}_${it.second.startMillis}" }
+                    .sortedBy { it.second.startMillis }
+            }
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = DarkSurface),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Row(
@@ -2233,8 +2272,8 @@ fun AppointmentsTabContent(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Month Appointments (${uiState.eventsByDate.values.flatten().size})",
-                            color = LavenderPrimary,
+                            text = "Month Appointments (${allMonthEvents.size})",
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
@@ -2242,20 +2281,16 @@ fun AppointmentsTabContent(
                             onClick = { viewModel.showAddEventDialog(true) },
                             modifier = Modifier.size(28.dp)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "Add", tint = LavenderPrimary)
+                            Icon(Icons.Default.Add, contentDescription = "Add", tint = MaterialTheme.colorScheme.primary)
                         }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    val allMonthEvents = uiState.eventsByDate.entries
-                        .flatMap { (date, events) -> events.map { date to it } }
-                        .sortedBy { it.second.startMillis }
-
                     if (allMonthEvents.isEmpty()) {
                         Text(
                             text = "No appointments found for this Badí' month.",
-                            color = TextSecondary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 13.sp
                         )
                     } else {
@@ -2264,6 +2299,8 @@ fun AppointmentsTabContent(
                                 EventItemCard(
                                     event = event,
                                     badiDate = uiState.selectedBadiDate,
+                                    timeSystemMode = uiState.timeSystemMode,
+                                    zoneId = zoneId,
                                     onEdit = { viewModel.showAddEventDialog(true, event) },
                                     onDelete = { viewModel.deleteAppointment(event.id) }
                                 )
@@ -2430,8 +2467,8 @@ fun HolyDayDetailDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = DarkSurface,
-            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+            color = MaterialTheme.colorScheme.surface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
@@ -2449,13 +2486,13 @@ fun HolyDayDetailDialog(
                         fontWeight = FontWeight.Bold
                     )
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TextSecondary)
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 
                 Text(
                     text = holyDay.arabicName,
-                    color = LavenderPrimary,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 18.sp,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
@@ -2466,20 +2503,20 @@ fun HolyDayDetailDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(DarkCardSurface)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(12.dp)
                 ) {
                     Column {
                         Text(
                             text = if (holyDay.isWorkSuspended) "Work & School Suspended" else "Work Not Suspended",
-                            color = if (holyDay.isWorkSuspended) HolyDayGold else TextSecondary,
+                            color = if (holyDay.isWorkSuspended) HolyDayGold else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Standard Commemoration Time: ${holyDay.commemorationTime}",
-                            color = TextPrimary,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 12.sp
                         )
                     }
@@ -2489,7 +2526,7 @@ fun HolyDayDetailDialog(
 
                 Text(
                     text = holyDay.description,
-                    color = TextPrimary,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 13.sp,
                     lineHeight = 18.sp
                 )
@@ -2499,8 +2536,8 @@ fun HolyDayDetailDialog(
                 Button(
                     onClick = onDismiss,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = LavenderPrimary,
-                        contentColor = LavenderOnPrimary
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth()
