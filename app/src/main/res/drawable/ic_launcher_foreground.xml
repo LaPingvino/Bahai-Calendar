@@ -4,40 +4,86 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Centered in 66dp safe zone (canvas 108x108, center 54,54) -->
-    <group
-        android:pivotX="54"
-        android:pivotY="54">
-        <!-- Outer Golden Glow Layer (Noto Sans Symbols 2 1F7D9 Nine-Pointed Star) -->
-        <path
-            android:pathData="M54.0,24.0 L58.26,42.49 L73.36,31.09 L64.74,47.91 L83.61,48.86 L66.21,56.21 L80.05,69.07 L61.99,63.51 L64.34,82.26 L54.0,66.39 L43.66,82.26 L46.01,63.51 L27.95,69.07 L41.79,56.21 L24.39,48.86 L43.26,47.91 L34.64,31.09 L49.74,42.49 Z"
-            android:strokeWidth="1.2"
-            android:strokeColor="#FFE082">
-            <aapt:attr name="android:fillColor">
-                <gradient
-                    android:startX="24"
-                    android:startY="24"
-                    android:endX="84"
-                    android:endY="84"
-                    android:type="linear">
-                    <item android:offset="0.0" android:color="#FFF9C4" />
-                    <item android:offset="0.4" android:color="#FFD54F" />
-                    <item android:offset="0.8" android:color="#FFA000" />
-                    <item android:offset="1.0" android:color="#FF8F00" />
-                </gradient>
-            </aapt:attr>
-        </path>
 
-        <!-- Inner White Geometric Nine-Pointed Star (1F7D9 White Star Model) -->
-        <path
-            android:pathData="M54.0,28.0 L57.19,41.87 L68.52,33.32 L62.06,45.93 L76.21,46.65 L63.16,52.16 L73.54,61.80 L60.00,57.63 L61.75,71.70 L54.0,59.79 L46.25,71.70 L48.00,57.63 L34.46,61.80 L44.84,52.16 L31.79,46.65 L45.94,45.93 L39.48,33.32 L50.81,41.87 Z"
-            android:fillColor="#00000000"
-            android:strokeColor="#FFFFFF"
-            android:strokeWidth="1.6" />
+    <!-- Soft drop shadow -->
+    <path
+        android:pathData="M36.00,33.00 L72.00,33.00 A8.00,8.00 0 0,1 80.00,41.00 L80.00,74.00 A8.00,8.00 0 0,1 72.00,82.00 L36.00,82.00 A8.00,8.00 0 0,1 28.00,74.00 L28.00,41.00 A8.00,8.00 0 0,1 36.00,33.00 Z"
+        android:fillColor="#7A07050D" />
 
-        <!-- Central subtle radiant circle -->
-        <path
-            android:pathData="M54,54m-4.5,0a4.5,4.5 0 1,0 9,0a4.5,4.5 0 1,0 -9,0"
-            android:fillColor="#FFFFFF" />
-    </group>
+    <!-- Calendar card body -->
+    <path android:pathData="M36.00,31.00 L72.00,31.00 A8.00,8.00 0 0,1 80.00,39.00 L80.00,72.00 A8.00,8.00 0 0,1 72.00,80.00 L36.00,80.00 A8.00,8.00 0 0,1 28.00,72.00 L28.00,39.00 A8.00,8.00 0 0,1 36.00,31.00 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="54"
+                android:startY="31"
+                android:endX="54"
+                android:endY="80"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#31294C" />
+                <item android:offset="1.0" android:color="#1E1A30" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Sunset-gold calendar header -->
+    <path android:pathData="M36.00,31.00 L72.00,31.00 A8.00,8.00 0 0,1 80.00,39.00 L80.00,43.50 L28.00,43.50 L28.00,39.00 A8.00,8.00 0 0,1 36.00,31.00 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="28"
+                android:startY="37"
+                android:endX="80"
+                android:endY="37"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#D49B38" />
+                <item android:offset="0.5" android:color="#F6CB65" />
+                <item android:offset="1.0" android:color="#E09F3E" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Subtle lavender border -->
+    <path
+        android:pathData="M36.00,31.00 L72.00,31.00 A8.00,8.00 0 0,1 80.00,39.00 L80.00,72.00 A8.00,8.00 0 0,1 72.00,80.00 L36.00,80.00 A8.00,8.00 0 0,1 28.00,72.00 L28.00,39.00 A8.00,8.00 0 0,1 36.00,31.00 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#4AD0BCFF"
+        android:strokeWidth="0.7" />
+
+    <!-- Left & Right calendar binding rings -->
+    <path android:pathData="M41.00,25.00 L41.00,25.00 A2.80,2.80 0 0,1 43.80,27.80 L43.80,33.40 A2.80,2.80 0 0,1 41.00,36.20 L41.00,36.20 A2.80,2.80 0 0,1 38.20,33.40 L38.20,27.80 A2.80,2.80 0 0,1 41.00,25.00 Z" android:fillColor="#221C36" />
+    <path android:pathData="M41.00,26.20 L41.00,26.20 A1.60,1.60 0 0,1 42.60,27.80 L42.60,33.40 A1.60,1.60 0 0,1 41.00,35.00 L41.00,35.00 A1.60,1.60 0 0,1 39.40,33.40 L39.40,27.80 A1.60,1.60 0 0,1 41.00,26.20 Z" android:fillColor="#FFF8E1" />
+    <path android:pathData="M67.00,25.00 L67.00,25.00 A2.80,2.80 0 0,1 69.80,27.80 L69.80,33.40 A2.80,2.80 0 0,1 67.00,36.20 L67.00,36.20 A2.80,2.80 0 0,1 64.20,33.40 L64.20,27.80 A2.80,2.80 0 0,1 67.00,25.00 Z" android:fillColor="#221C36" />
+    <path android:pathData="M67.00,26.20 L67.00,26.20 A1.60,1.60 0 0,1 68.60,27.80 L68.60,33.40 A1.60,1.60 0 0,1 67.00,35.00 L67.00,35.00 A1.60,1.60 0 0,1 65.40,33.40 L65.40,27.80 A1.60,1.60 0 0,1 67.00,26.20 Z" android:fillColor="#FFF8E1" />
+
+    <!-- Faceted 9-pointed Bahá'í star (exact 9-fold symmetry) -->
+    <path android:pathData="M54.00,61.50 L51.50,54.64 L54.00,46.50 Z M54.00,61.50 L56.50,54.64 L63.64,50.01 Z M54.00,61.50 L60.32,57.85 L68.77,58.90 Z M54.00,61.50 L61.19,62.77 L66.99,69.00 Z M54.00,61.50 L58.69,67.09 L59.13,75.60 Z M54.00,61.50 L54.00,68.80 L48.87,75.60 Z M54.00,61.50 L49.31,67.09 L41.01,69.00 Z M54.00,61.50 L46.81,62.77 L39.23,58.90 Z M54.00,61.50 L47.68,57.85 L44.36,50.01 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="39"
+                android:startY="46"
+                android:endX="69"
+                android:endY="76"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFFDF5" />
+                <item android:offset="0.55" android:color="#FDE68A" />
+                <item android:offset="1.0" android:color="#E5B24C" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M54.00,61.50 L54.00,46.50 L56.50,54.64 Z M54.00,61.50 L63.64,50.01 L60.32,57.85 Z M54.00,61.50 L68.77,58.90 L61.19,62.77 Z M54.00,61.50 L66.99,69.00 L58.69,67.09 Z M54.00,61.50 L59.13,75.60 L54.00,68.80 Z M54.00,61.50 L48.87,75.60 L49.31,67.09 Z M54.00,61.50 L41.01,69.00 L46.81,62.77 Z M54.00,61.50 L39.23,58.90 L47.68,57.85 Z M54.00,61.50 L44.36,50.01 L51.50,54.64 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="39"
+                android:startY="46"
+                android:endX="69"
+                android:endY="76"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#E8B954" />
+                <item android:offset="1.0" android:color="#B87E1E" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Crisp center jewel -->
+    <path android:pathData="M54.00,59.00 A2.50,2.50 0 1,0 54.00,64.00 A2.50,2.50 0 1,0 54.00,59.00 Z" android:fillColor="#221C36" />
+    <path android:pathData="M54.00,60.30 A1.20,1.20 0 1,0 54.00,62.70 A1.20,1.20 0 1,0 54.00,60.30 Z" android:fillColor="#FFF8E1" />
 </vector>

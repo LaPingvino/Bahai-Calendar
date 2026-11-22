@@ -1,0 +1,27 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Calendar outline -->
+    <path
+        android:pathData="M36.00,31.00 L72.00,31.00 A8.00,8.00 0 0,1 80.00,39.00 L80.00,72.00 A8.00,8.00 0 0,1 72.00,80.00 L36.00,80.00 A8.00,8.00 0 0,1 28.00,72.00 L28.00,39.00 A8.00,8.00 0 0,1 36.00,31.00 Z"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.2" />
+
+    <!-- Header bar -->
+    <path
+        android:pathData="M36.00,31.00 L72.00,31.00 A8.00,8.00 0 0,1 80.00,39.00 L80.00,43.50 L28.00,43.50 L28.00,39.00 A8.00,8.00 0 0,1 36.00,31.00 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Binding pins -->
+    <path android:pathData="M41.00,26.20 L41.00,26.20 A1.60,1.60 0 0,1 42.60,27.80 L42.60,33.40 A1.60,1.60 0 0,1 41.00,35.00 L41.00,35.00 A1.60,1.60 0 0,1 39.40,33.40 L39.40,27.80 A1.60,1.60 0 0,1 41.00,26.20 Z" android:fillColor="#FFFFFF" />
+    <path android:pathData="M67.00,26.20 L67.00,26.20 A1.60,1.60 0 0,1 68.60,27.80 L68.60,33.40 A1.60,1.60 0 0,1 67.00,35.00 L67.00,35.00 A1.60,1.60 0 0,1 65.40,33.40 L65.40,27.80 A1.60,1.60 0 0,1 67.00,26.20 Z" android:fillColor="#FFFFFF" />
+
+    <!-- 9-pointed star -->
+    <path
+        android:pathData="M54.00,47.70 L56.33,55.11 L62.87,50.93 L59.89,58.10 L67.59,59.10 L60.70,62.68 L65.95,68.40 L58.37,66.71 L58.72,74.47 L54.00,68.30 L49.28,74.47 L49.63,66.71 L42.05,68.40 L47.30,62.68 L40.41,59.10 L48.11,58.10 L45.13,50.93 L51.67,55.11 Z"
+        android:fillColor="#FFFFFF" />
+</vector>
