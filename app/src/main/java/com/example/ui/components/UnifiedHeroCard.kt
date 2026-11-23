@@ -185,9 +185,9 @@ fun UnifiedHeroCard(
                     }
                     Spacer(modifier = Modifier.width(6.dp))
                     val weekdayDisplay = if (selectedDate.isAfterSunset) {
-                        "${selectedDate.weekdayInfo.transliteration} (${selectedDate.weekdayInfo.translation}) • ${selectedDate.civilWeekdayInfo.gregorianDayName} eve"
+                        "${selectedDate.weekdayInfo.transliteration} (${selectedDate.weekdayInfo.translation}) • ${selectedDate.civilDayName} eve"
                     } else {
-                        "${selectedDate.weekdayInfo.transliteration} (${selectedDate.weekdayInfo.translation}) • ${selectedDate.civilWeekdayInfo.gregorianDayName}"
+                        "${selectedDate.weekdayInfo.transliteration} (${selectedDate.weekdayInfo.translation}) • ${selectedDate.civilDayName}"
                     }
                     Text(
                         text = weekdayDisplay,

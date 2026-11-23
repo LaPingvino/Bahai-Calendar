@@ -14,10 +14,10 @@ android {
   defaultConfig {
     val resolvedVersionCode = providers.environmentVariable("VERSION_CODE").orNull?.toIntOrNull()
       ?: providers.gradleProperty("versionCode").orNull?.toIntOrNull()
-      ?: 1
+      ?: 3
     val resolvedVersionName = providers.environmentVariable("VERSION_NAME").orNull?.takeIf { it.isNotBlank() }
       ?: providers.gradleProperty("versionName").orNull?.takeIf { it.isNotBlank() }
-      ?: "1.0.0"
+      ?: "1.0.2"
 
     applicationId = "eu.kiefte.bahaicalendar"
     minSdk = 24
@@ -48,9 +48,16 @@ android {
   buildTypes {
     release {
       isCrunchPngs = false
-      isMinifyEnabled = false
+      // R8: shrink, optimise and obfuscate the DEX, then drop unused resources.
+      isMinifyEnabled = true
+      isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("release")
+      // Sign only when the upload key is actually available (CI decodes it from secrets);
+      // without it, assembleRelease still builds an unsigned APK to test R8 locally.
+      val releaseSigning = signingConfigs.getByName("release")
+      if (releaseSigning.storeFile?.exists() == true && releaseSigning.storePassword != null) {
+        signingConfig = releaseSigning
+      }
     }
     debug {
       val customDebugKeystore = file("${rootDir}/debug.keystore")

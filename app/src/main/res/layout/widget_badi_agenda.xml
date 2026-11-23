@@ -33,7 +33,9 @@
                 android:id="@+id/widget_badi_month_year"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="17 Asmá\' 183 B.E."
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Jalál, 17 Asmá\' 183 B.E."
                 android:textColor="#FFD54F"
                 android:textSize="13.5sp"
                 android:textStyle="bold" />

@@ -41,10 +41,11 @@ class BadiAgendaWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_badi_agenda)
 
             // 1. Header: Date, Sunset, Location
+            val weekday = displayData.badiDate.weekdayInfo.transliteration
             val dateStr = if (displayData.badiDate.month == 0) {
-                "Ayyám-i-Há (Day ${displayData.badiDate.day}) ${displayData.badiDate.year} B.E."
+                "$weekday, Ayyám-i-Há (Day ${displayData.badiDate.day}) ${displayData.badiDate.year} B.E."
             } else {
-                "${displayData.badiDate.day} ${displayData.badiDate.monthInfo.transliteration} ${displayData.badiDate.year} B.E."
+                "$weekday, ${displayData.badiDate.day} ${displayData.badiDate.monthInfo.transliteration} ${displayData.badiDate.year} B.E."
             }
             views.setTextViewText(R.id.widget_badi_month_year, dateStr)
             views.setTextViewText(R.id.widget_sunset_badge, displayData.sunsetBadgeText)

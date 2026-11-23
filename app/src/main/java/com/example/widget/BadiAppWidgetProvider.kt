@@ -51,9 +51,9 @@ class BadiAppWidgetProvider : AppWidgetProvider() {
 
             // 3. Badí' Weekday & Gregorian Day
             val weekdayText = if (data.isAfterSunset) {
-                "${data.badiDate.weekdayInfo.transliteration} (${data.badiDate.weekdayInfo.translation}) • ${data.badiDate.civilWeekdayInfo.gregorianDayName} eve"
+                "${data.badiDate.weekdayInfo.transliteration} (${data.badiDate.weekdayInfo.translation}) • ${data.badiDate.civilDayName} eve"
             } else {
-                "${data.badiDate.weekdayInfo.transliteration} (${data.badiDate.weekdayInfo.translation}) • ${data.badiDate.civilWeekdayInfo.gregorianDayName}"
+                "${data.badiDate.weekdayInfo.transliteration} (${data.badiDate.weekdayInfo.translation}) • ${data.badiDate.civilDayName}"
             }
             views.setTextViewText(com.example.R.id.widget_badi_weekday, weekdayText)
 

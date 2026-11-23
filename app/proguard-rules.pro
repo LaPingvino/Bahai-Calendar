@@ -1,21 +1,25 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
+# R8 rules for the release build (on top of proguard-android-optimize.txt and the
+# consumer rules shipped by AndroidX/Compose).
 #
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Kept automatically, no rule needed: everything named in AndroidManifest.xml (MainActivity,
+# the five AppWidgetProviders, BadiAgendaWidgetService, WidgetHourlyUpdateReceiver) and the
+# resources referenced from the widget layouts/xml.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Readable crash stack traces in Play Console. The mapping file travels inside the .aab,
+# so Play de-obfuscates class/method names; this keeps the line numbers.
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Settings are stored in SharedPreferences as enum constant names and read back with
+# valueOf() (BadiViewModel, WidgetDataManager). Keep these enums intact so values saved by
+# earlier releases keep resolving after an update.
+-keep enum com.example.badi.TimeSystemMode { *; }
+-keep enum com.example.ui.theme.AppThemeMode { *; }
+-keep enum com.example.ui.YearNotationSystem { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# BadiViewModel is an AndroidViewModel built by the default factory, which looks up the
+# (Application) constructor reflectively. Lifecycle's consumer rules cover this; kept here
+# explicitly so it doesn't hinge on a library version.
+-keepclassmembers class * extends androidx.lifecycle.AndroidViewModel {
+    <init>(android.app.Application);
+}

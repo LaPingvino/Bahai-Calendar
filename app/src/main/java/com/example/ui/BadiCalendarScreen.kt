@@ -100,6 +100,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -128,6 +136,15 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+/**
+ * Insets every screen keeps clear of when drawing edge-to-edge (Android 15+ enforces it for
+ * targetSdk 35+): status and navigation bars plus the display cutout, which matters in landscape.
+ * The keyboard is left out on purpose: the main screen has no text fields, and dialogs handle it.
+ */
+val AppWindowInsets: WindowInsets
+    @Composable get() = WindowInsets.systemBars.union(WindowInsets.displayCutout)
 
 @Composable
 fun BadiCalendarScreen(viewModel: BadiViewModel) {
@@ -180,6 +197,7 @@ fun BadiCalendarScreen(viewModel: BadiViewModel) {
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = AppWindowInsets,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             AppTopBar(
@@ -379,6 +397,7 @@ fun AppTopBar(
     onOpenTimeSystemPicker: () -> Unit = {}
 ) {
     TopAppBar(
+        windowInsets = AppWindowInsets.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -986,30 +1005,41 @@ fun MainCalendarSection(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 7-Column Badí' Weekdays Header: J, J, K, F, ‘I, I, I
+            // 7-column weekday header: Badí' name over the Gregorian day in the device language.
+            // Same weight/spacing as the day grid below so every name sits over its own column.
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceAround
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                val dayHeaders = listOf(
-                    "J" to "Jalál (Sat)",
-                    "J" to "Jamál (Sun)",
-                    "K" to "Kamál (Mon)",
-                    "F" to "Fiḍál (Tue)",
-                    "‘I" to "‘Idál (Wed)",
-                    "I" to "Istijbáb (Thu)",
-                    "I" to "Istiqlál (Fri)"
-                )
-                dayHeaders.forEach { (abbr, fullName) ->
-                    Box(
-                        modifier = Modifier.width(36.dp),
-                        contentAlignment = Alignment.Center
+                // Badí' week order Jalál (Saturday) … Istiqlál (Friday) as java.time day numbers
+                listOf(6, 7, 1, 2, 3, 4, 5).forEach { javaDay ->
+                    val badiName = BadiDate.getWeekdayInfo(javaDay).transliteration
+                    val civilShort = BadiDate.localGregorianDayName(javaDay)
+                    val civilFull = BadiDate.localGregorianDayName(javaDay, java.time.format.TextStyle.FULL)
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = "$badiName, $civilFull"
+                            },
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = abbr,
+                            text = badiName,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
+                            fontSize = 10.sp,
+                            letterSpacing = (-0.2).sp,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Visible,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = civilShort,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 9.sp,
+                            maxLines = 1,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -1022,17 +1052,7 @@ fun MainCalendarSection(
             val days = uiState.daysInMonth
             val firstDayWeekday = if (days.isNotEmpty()) {
                 // Determine day of week index for Badí' (0 = Saturday, 1 = Sunday, ..., 6 = Friday)
-                val javaDay = days.first().gregorianDate.dayOfWeek.value // 1 = Mon ... 7 = Sun
-                when (javaDay) {
-                    6 -> 0 // Sat
-                    7 -> 1 // Sun
-                    1 -> 2 // Mon
-                    2 -> 3 // Tue
-                    3 -> 4 // Wed
-                    4 -> 5 // Thu
-                    5 -> 6 // Fri
-                    else -> 0
-                }
+                BadiDate.badiWeekIndex(days.first().primaryBadiGregorianDate.dayOfWeek.value)
             } else 0
 
             // Grid cells with leading offset (intrinsic row heights so 4-row months never clip days 16-19)
@@ -1429,7 +1449,6 @@ fun BadiLogicalBlocksPrepSection(
                         blockEvents.forEach { event ->
                             EventItemCard(
                                 event = event,
-                                badiDate = uiState.selectedBadiDate,
                                 timeSystemMode = uiState.timeSystemMode,
                                 zoneId = zoneId,
                                 onEdit = { onEditEvent(event) },
@@ -1462,7 +1481,7 @@ fun BadiLogicalBlocksPrepSection(
 @Composable
 fun EventItemCard(
     event: CalendarEvent,
-    badiDate: BadiDate,
+    dateLabel: String? = null,
     timeSystemMode: TimeSystemMode = TimeSystemMode.STANDARD_CIVIL,
     zoneId: ZoneId = ZoneId.systemDefault(),
     onEdit: () -> Unit,
@@ -1489,6 +1508,16 @@ fun EventItemCard(
         Spacer(modifier = Modifier.width(10.dp))
 
         Column(modifier = Modifier.weight(1f)) {
+            if (dateLabel != null) {
+                Text(
+                    text = dateLabel,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 10.5.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             Text(
                 text = event.title,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -1575,7 +1604,7 @@ fun HolyDaysTabContent(
         Spacer(modifier = Modifier.height(4.dp))
 
         uiState.allYearHolyDays.forEach { (holyDay, gregDate) ->
-            val fmt = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy")
+            val fmt = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.getDefault())
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1617,7 +1646,7 @@ fun HolyDaysTabContent(
 
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = gregDate.format(fmt),
+                        text = "${BadiDate.getWeekdayInfo(gregDate.dayOfWeek.value).transliteration} • ${gregDate.format(fmt)}",
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
@@ -2218,7 +2247,7 @@ fun AppointmentsTabContent(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     uiState.upcomingHolyDaysAndFeasts.forEach { item ->
-                        val fmt = DateTimeFormatter.ofPattern("EEE, MMM d")
+                        val fmt = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2234,7 +2263,7 @@ fun AppointmentsTabContent(
                                     else -> item.formattedBadiDate
                                 }
                                 Text(label, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                                Text("${item.day} ${item.monthInfo.transliteration} ${item.year} B.E.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
+                                Text("${item.weekdayInfo.transliteration}, ${item.day} ${item.monthInfo.transliteration} ${item.year} B.E.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                             }
                             Text(
                                 text = item.gregorianDate.format(fmt),
@@ -2248,9 +2277,11 @@ fun AppointmentsTabContent(
             }
 
             // Synced Google Calendar Appointments List
-            val monthDatesSet = remember(uiState.daysInMonth) {
-                uiState.daysInMonth.map { it.primaryBadiGregorianDate }.toSet()
+            val badiDaysByDate = remember(uiState.daysInMonth) {
+                uiState.daysInMonth.associateBy { it.primaryBadiGregorianDate }
             }
+            val monthDatesSet = badiDaysByDate.keys
+            val plannerDateFormatter = remember { DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault()) }
             val allMonthEvents = remember(uiState.eventsByDate, monthDatesSet) {
                 uiState.eventsByDate.entries
                     .filter { it.key in monthDatesSet }
@@ -2295,10 +2326,13 @@ fun AppointmentsTabContent(
                         )
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            allMonthEvents.forEach { (_, event) ->
+                            allMonthEvents.forEach { (date, event) ->
+                                val badiDay = badiDaysByDate[date]
                                 EventItemCard(
                                     event = event,
-                                    badiDate = uiState.selectedBadiDate,
+                                    dateLabel = badiDay?.let {
+                                        "${it.weekdayInfo.transliteration}, ${it.day} ${it.monthInfo.transliteration} • ${date.format(plannerDateFormatter)}"
+                                    },
                                     timeSystemMode = uiState.timeSystemMode,
                                     zoneId = zoneId,
                                     onEdit = { viewModel.showAddEventDialog(true, event) },
@@ -2324,6 +2358,7 @@ fun BadiBottomNavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = 6.dp,
+        windowInsets = AppWindowInsets.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
         modifier = Modifier.testTag("bottom_nav_bar")
     ) {
         NavigationBarItem(

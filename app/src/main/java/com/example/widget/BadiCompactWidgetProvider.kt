@@ -36,9 +36,9 @@ class BadiCompactWidgetProvider : AppWidgetProvider() {
                 "${data.badiDate.monthInfo.transliteration} ${data.badiDate.year} B.E."
             )
             val weekdayText = if (data.isAfterSunset) {
-                "${data.badiDate.weekdayInfo.transliteration} • ${data.badiDate.civilWeekdayInfo.gregorianDayName} eve"
+                "${data.badiDate.weekdayInfo.transliteration} • ${data.badiDate.civilDayName} eve"
             } else {
-                "${data.badiDate.weekdayInfo.transliteration} • ${data.badiDate.civilWeekdayInfo.gregorianDayName}"
+                "${data.badiDate.weekdayInfo.transliteration} • ${data.badiDate.civilDayName}"
             }
             views.setTextViewText(com.example.R.id.widget_badi_weekday, weekdayText)
             views.setTextViewText(com.example.R.id.widget_sunset_badge, data.sunsetBadgeText)

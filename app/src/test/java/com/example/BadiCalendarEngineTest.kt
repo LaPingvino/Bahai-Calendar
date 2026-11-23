@@ -164,4 +164,22 @@ class BadiCalendarEngineTest {
         assertEquals(8, middayBadi.month)
         assertEquals(19, middayBadi.day)
     }
+
+    @Test
+    fun weekdayNamesFollowBahaiOrgCalendar() {
+        // bahai.org "Bahá'í Calendar 183 B.E. / 2026-2027" grid headers:
+        // Jalál (Sat), Jamál (Sun), Kamál (Mon), Fiḍál (Tues), ʻIdál (Wed), Istijlál (Thurs), Istiqlál (Fri).
+        // Naw-Rúz 183 (1 Bahá) is Saturday 21 March 2026, so 21..27 March run through the whole week.
+        val expected = listOf("Jalál", "Jamál", "Kamál", "Fiḍál", "'Idál", "Istijlál", "Istiqlál")
+        expected.forEachIndexed { offset, name ->
+            val badi = BadiCalendarEngine.gregorianToBadi(LocalDate.of(2026, 3, 21 + offset), time = LocalTime.NOON, zoneId = ZoneId.of("Asia/Jerusalem"))
+            assertEquals(183, badi.year)
+            assertEquals(1, badi.month)
+            assertEquals(offset + 1, badi.day)
+            assertEquals("Weekday of 2026-03-${21 + offset}", name, badi.weekdayInfo.transliteration)
+        }
+        // After sunset on Friday 27 March the Badí' day (and week) has moved on to Jalál.
+        val fridayEvening = BadiCalendarEngine.gregorianToBadi(LocalDate.of(2026, 3, 27), time = LocalTime.of(23, 0), zoneId = ZoneId.of("Asia/Jerusalem"))
+        assertEquals("Jalál", fridayEvening.weekdayInfo.transliteration)
+    }
 }

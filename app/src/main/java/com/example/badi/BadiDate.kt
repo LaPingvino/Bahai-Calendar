@@ -1,8 +1,10 @@
 package com.example.badi
 
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.util.Locale
 
 data class MonthInfo(
@@ -24,8 +26,7 @@ data class WeekdayInfo(
     val badiNumber: Int,
     val transliteration: String,
     val arabic: String,
-    val translation: String,
-    val gregorianDayName: String
+    val translation: String
 )
 
 data class VahidYearInfo(
@@ -79,8 +80,14 @@ data class BadiDate(
     }
 
     val badiWeekdayInfo: WeekdayInfo = getWeekdayInfo(primaryBadiGregorianDate.dayOfWeek.value)
-    val civilWeekdayInfo: WeekdayInfo = getWeekdayInfo(gregorianDate.dayOfWeek.value)
     val weekdayInfo: WeekdayInfo = badiWeekdayInfo
+
+    /**
+     * Full Gregorian weekday name of [gregorianDate] in English, for the English composite
+     * lines ("Fiḍál (Grace) • Monday eve"). Stand-alone date labels use [localGregorianDayName].
+     */
+    val civilDayName: String
+        get() = localGregorianDayName(gregorianDate.dayOfWeek.value, TextStyle.FULL, Locale.ENGLISH)
 
     // Váḥid and Kull-i-Shay' calculations
     val kullIShay: Int = ((year - 1) / 361) + 1
@@ -157,13 +164,13 @@ data class BadiDate(
         )
 
         val WEEKDAYS = listOf(
-            WeekdayInfo(1, "Jalál", "جلال", "Glory", "Saturday"),
-            WeekdayInfo(2, "Jamál", "جمال", "Beauty", "Sunday"),
-            WeekdayInfo(3, "Kamál", "كمال", "Perfection", "Monday"),
-            WeekdayInfo(4, "Fiḍál", "فضال", "Grace", "Tuesday"),
-            WeekdayInfo(5, "'Idál", "عدال", "Justice", "Wednesday"),
-            WeekdayInfo(6, "Istijbáb", "استجاب", "Prayer / Efficacy", "Thursday"),
-            WeekdayInfo(7, "Istiqlál", "استقلال", "Independence", "Friday")
+            WeekdayInfo(1, "Jalál", "جلال", "Glory"),
+            WeekdayInfo(2, "Jamál", "جمال", "Beauty"),
+            WeekdayInfo(3, "Kamál", "كمال", "Perfection"),
+            WeekdayInfo(4, "Fiḍál", "فضال", "Grace"),
+            WeekdayInfo(5, "'Idál", "عدال", "Justice"),
+            WeekdayInfo(6, "Istijlál", "استجلال", "Majesty"),
+            WeekdayInfo(7, "Istiqlál", "استقلال", "Independence")
         )
 
         val VAHID_YEARS = listOf(
@@ -188,18 +195,20 @@ data class BadiDate(
             VahidYearInfo(19, "Váḥid", "واحد", "Unity")
         )
 
-        fun getWeekdayInfo(javaDayOfWeek: Int): WeekdayInfo {
-            // javaDayOfWeek: 1 = Monday, ..., 6 = Saturday, 7 = Sunday
-            return when (javaDayOfWeek) {
-                6 -> WEEKDAYS[0] // Saturday -> Jalál
-                7 -> WEEKDAYS[1] // Sunday -> Jamál
-                1 -> WEEKDAYS[2] // Monday -> Kamál
-                2 -> WEEKDAYS[3] // Tuesday -> Fiḍál
-                3 -> WEEKDAYS[4] // Wednesday -> 'Idál
-                4 -> WEEKDAYS[5] // Thursday -> Istijbáb
-                5 -> WEEKDAYS[6] // Friday -> Istiqlál
-                else -> WEEKDAYS[0]
-            }
-        }
+        /**
+         * Position of a day in the Badí' week (0 = Jalál/Saturday … 6 = Istiqlál/Friday)
+         * for a java.time day-of-week value (1 = Monday … 7 = Sunday).
+         */
+        fun badiWeekIndex(javaDayOfWeek: Int): Int = (javaDayOfWeek + 1) % 7
+
+        fun getWeekdayInfo(javaDayOfWeek: Int): WeekdayInfo =
+            WEEKDAYS[badiWeekIndex(javaDayOfWeek.coerceIn(1, 7))]
+
+        /** Gregorian weekday name in the device language, e.g. "Sat" / "za" (SHORT) or "Saturday" / "zaterdag" (FULL). */
+        fun localGregorianDayName(
+            javaDayOfWeek: Int,
+            style: TextStyle = TextStyle.SHORT,
+            locale: Locale = Locale.getDefault()
+        ): String = DayOfWeek.of(javaDayOfWeek.coerceIn(1, 7)).getDisplayName(style, locale)
     }
 }

@@ -1,5 +1,6 @@
 package com.example.ui
 
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -74,6 +75,7 @@ fun TimeSystemPickerDialog(
                 .fillMaxWidth(0.92f)
                 .fillMaxHeight(0.88f)
                 .padding(vertical = 12.dp)
+                .safeDrawingPadding()
                 .testTag("time_system_picker_dialog")
         ) {
             Column(
